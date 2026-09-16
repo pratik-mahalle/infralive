@@ -122,6 +122,26 @@ struct CostBarTests {
         #expect(process.currentDirectoryURL?.path == root.path)
     }
 
+    @Test func bundledRuntimeKeepsWritableStateOutsideTheApp() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("cloudwake-bundle-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let resources = root.appendingPathComponent("Cloudwake.app/Contents/Resources")
+        let support = root.appendingPathComponent("Application Support/Cloudwake")
+        var settings = AgentSettings.bundled(resources: resources, support: support)
+        try FileManager.default.createDirectory(atPath: settings.projectPath + "/src/aws_cost_agent", withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: settings.projectPath + "/src/aws_cost_agent/cli.py", contents: Data())
+        #expect(settings.pythonPath == resources.appendingPathComponent("Python/bin/python3.12").path)
+        settings.pythonPath = "/usr/bin/true"
+        let process = try settings.makeProcess(["demo"])
+        #expect(process.currentDirectoryURL?.path == support.path)
+        #expect(process.environment?["PYTHONPATH"] == settings.projectPath + "/src")
+        #expect(process.environment?["PYTHONDONTWRITEBYTECODE"] == "1")
+        #expect(settings.configPath == support.appendingPathComponent("config.toml").path)
+        let original = AgentSettings(projectPath: root.path, pythonPath: "/usr/bin/true", configPath: "", demo: true)
+        let decoded = try JSONDecoder().decode(AgentSettings.self, from: JSONEncoder().encode(original))
+        #expect(decoded.workingDirectory == root.path)
+    }
+
     @Test func bridgeHandlesLargeOutputAndFailures() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("costbar-bridge-\(UUID())")
         let source = root.appendingPathComponent("src/aws_cost_agent")

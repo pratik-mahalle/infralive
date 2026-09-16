@@ -12,8 +12,24 @@ struct AgentSettings: Codable, Equatable {
     var pythonPath: String
     var configPath: String
     var demo: Bool
+    var dataPath: String? = nil
+
+    var workingDirectory: String { dataPath ?? projectPath }
+
+    static func bundled(resources: URL, support: URL) -> AgentSettings {
+        AgentSettings(projectPath: resources.appendingPathComponent("Agent").path,
+                      pythonPath: resources.appendingPathComponent("Python/bin/python3.12").path,
+                      configPath: support.appendingPathComponent("config.toml").path,
+                      demo: true, dataPath: support.path)
+    }
 
     static var initial: AgentSettings {
+        if let resources = Bundle.main.resourceURL,
+           FileManager.default.fileExists(atPath: resources.appendingPathComponent("Agent/src/aws_cost_agent/cli.py").path) {
+            let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("Cloudwake")
+            return bundled(resources: resources, support: support)
+        }
         let root = Bundle.main.object(forInfoDictionaryKey: "AgentProjectPath") as? String
             ?? ProcessInfo.processInfo.environment["COST_AGENT_PROJECT"]
             ?? FileManager.default.currentDirectoryPath
@@ -34,12 +50,15 @@ struct AgentSettings: Codable, Equatable {
         }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: pythonPath)
-        process.currentDirectoryURL = URL(fileURLWithPath: projectPath)
+        try FileManager.default.createDirectory(atPath: workingDirectory, withIntermediateDirectories: true)
+        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         // Argument arrays, never a shell command. Paths and questions are literal arguments.
         process.arguments = ["-m", "aws_cost_agent"] + (setup ? [] : (demo ? ["--demo"] : ["--config", configPath])) + command
         var environment = ProcessInfo.processInfo.environment
         environment["PYTHONPATH"] = projectPath + "/src"
         environment["PYTHONUNBUFFERED"] = "1"
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        environment["PYTHONNOUSERSITE"] = "1"
         process.environment = environment
         return process
     }

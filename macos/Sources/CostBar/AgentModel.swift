@@ -34,6 +34,12 @@ final class AgentModel: ObservableObject {
         if let data = UserDefaults.standard.data(forKey: preferenceKey),
            let saved = try? JSONDecoder().decode(AgentSettings.self, from: data) {
             settings = saved
+            // Homebrew upgrades and moving the app must not retain old bundle paths.
+            if saved.dataPath != nil && saved.projectPath.hasSuffix(".app/Contents/Resources/Agent"),
+               AgentSettings.initial.dataPath != nil {
+                settings.projectPath = AgentSettings.initial.projectPath
+                settings.pythonPath = AgentSettings.initial.pythonPath
+            }
         } else { settings = .initial }
         status = fixture
         if let fixture { settings.demo = fixture.demo }
@@ -212,7 +218,7 @@ final class AgentModel: ObservableObject {
         error = nil
         do {
             let process = try settings.makeProcess(["run"])
-            let directory = URL(fileURLWithPath: settings.projectPath).appendingPathComponent("data")
+            let directory = URL(fileURLWithPath: settings.workingDirectory).appendingPathComponent("data")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let log = directory.appendingPathComponent(settings.demo ? "menubar-demo.log" : "menubar-worker.log")
             FileManager.default.createFile(atPath: log.path, contents: nil)
@@ -270,7 +276,7 @@ final class AgentModel: ObservableObject {
         defer { busy = false }
         do {
             let data = try await bridge.execute(settings: settings, command: ["report"])
-            let directory = URL(fileURLWithPath: settings.projectPath).appendingPathComponent("data")
+            let directory = URL(fileURLWithPath: settings.workingDirectory).appendingPathComponent("data")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let file = directory.appendingPathComponent(settings.demo ? "demo-report.txt" : "aws-report.txt")
             try data.write(to: file, options: .atomic)

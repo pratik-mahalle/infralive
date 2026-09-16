@@ -43,6 +43,19 @@ AWS; the desktop app requires macOS. GCP, Azure, organization-wide reporting, an
 are not implemented. The optional local SES integration supports daily reports and alerts;
 the always-on deployment keeps email disabled.
 
+## Download for Mac
+
+For **Apple silicon · macOS 13+**:
+
+```sh
+brew install --cask pratik-mahalle/tap/cloudwake
+```
+
+Or [download Cloudwake](https://github.com/pratik-mahalle/infralive/releases/latest).
+The app includes Python and the AWS SDK. This early build is not Apple-notarized;
+see the [installation notes](docs/downloads.md) for first launch and AWS profile setup.
+Intel Macs can build from source below.
+
 ## Try Cloudwake
 
 You need **Python 3.11+**. Building the Mac app also needs **macOS 13+** and Xcode Command Line
@@ -65,7 +78,7 @@ open dist/Cloudwake.app
 
 On first launch, Cloudwake starts in demo mode. Look for its cloud symbol and spending amount
 in the menu bar. The local build uses this checkout's Python environment, so keep the project
-and `.venv` available. It is not yet a standalone, notarized download.
+and `.venv` available. Standalone downloads bundle their own runtime; the local development build uses your checkout.
 
 Prefer a terminal? The CLI works without the Mac app:
 

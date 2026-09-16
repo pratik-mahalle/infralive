@@ -5,6 +5,21 @@ import SwiftUI
 enum CostBarLauncher {
     @MainActor
     static func main() {
+        if CommandLine.arguments.contains("--check-bundle") {
+            do {
+                var settings = AgentSettings.initial
+                guard settings.dataPath != nil else { throw BridgeError.message("No bundled runtime found") }
+                let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("cloudwake-check-\(UUID())")
+                defer { try? FileManager.default.removeItem(at: temporary) }
+                settings.dataPath = temporary.path
+                let process = try settings.makeProcess(["demo"])
+                try process.run()
+                process.waitUntilExit()
+                guard process.terminationStatus == 0 else { throw BridgeError.message("Bundled demo failed") }
+                print("Cloudwake bundled runtime verified without AWS access.")
+            } catch { fputs("Bundle check failed: \(error)\n", stderr); exit(1) }
+            return
+        }
         if CommandLine.arguments.contains("--render") {
             do { try renderPreview() }
             catch { fputs("Preview failed: \(error)\n", stderr); exit(1) }

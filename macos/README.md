@@ -3,6 +3,8 @@
 A native SwiftUI menu bar companion for AWS Cost Agent. Supports local or always-on AWS collection. Requires macOS 13 or later and
 Xcode Command Line Tools (`xcode-select --install`) to build. No third-party Swift dependencies.
 
+For the standalone download and Homebrew installation, see [Install Cloudwake](../docs/downloads.md).
+
 ## Build and open
 
 From the project root, after installing the Python agent:
