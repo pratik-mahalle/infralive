@@ -1,0 +1,68 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Regional CloudTrail creation events to SQS. REQUIRES an active CloudTrail trail logging write management events in this region.",
+  "Parameters": {
+    "AlarmTopicArn": {"Type": "String", "Default": "", "Description": "Optional existing SNS topic ARN for dead-letter alarm notifications"}
+  },
+  "Conditions": {"HasAlarmTopic": {"Fn::Not": [{"Fn::Equals": [{"Ref": "AlarmTopicArn"}, ""]}]}},
+  "Resources": {
+    "DeadLetterQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {"QueueName": "aws-cost-agent-dead-letter", "MessageRetentionPeriod": 1209600, "SqsManagedSseEnabled": true}
+    },
+    "EventQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "aws-cost-agent-events", "VisibilityTimeout": 180,
+        "MessageRetentionPeriod": 1209600, "SqsManagedSseEnabled": true,
+        "RedrivePolicy": {"deadLetterTargetArn": {"Fn::GetAtt": ["DeadLetterQueue", "Arn"]}, "maxReceiveCount": 5}
+      }
+    },
+    "CreationRule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "aws-cost-agent-resource-creation",
+        "State": "ENABLED",
+        "EventPattern": {
+          "account": [{"Ref": "AWS::AccountId"}],
+          "detail-type": ["AWS API Call via CloudTrail"],
+          "detail": {
+            "eventCategory": ["Management"],
+            "eventName": [{"prefix": "Create"}, "RunInstances", "RunTask", "RunJobFlow", "AllocateAddress", "AllocateHosts", "RequestSpotInstances", "RequestSpotFleet", "RestoreDBInstanceFromDBSnapshot", "RestoreDBClusterFromSnapshot", "RestoreDBInstanceToPointInTime", "RestoreDBClusterToPointInTime", "RestoreTableFromBackup", "RestoreTableToPointInTime"],
+            "errorCode": [{"exists": false}]
+          }
+        },
+        "Targets": [{"Id": "EventQueue", "Arn": {"Fn::GetAtt": ["EventQueue", "Arn"]}, "RetryPolicy": {"MaximumEventAgeInSeconds": 86400, "MaximumRetryAttempts": 185}, "DeadLetterConfig": {"Arn": {"Fn::GetAtt": ["DeadLetterQueue", "Arn"]}}}]
+      }
+    },
+    "QueuePolicy": {
+      "Type": "AWS::SQS::QueuePolicy",
+      "Properties": {
+        "Queues": [{"Ref": "EventQueue"}, {"Ref": "DeadLetterQueue"}],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {"Effect": "Allow", "Principal": {"Service": "events.amazonaws.com"}, "Action": "sqs:SendMessage", "Resource": [{"Fn::GetAtt": ["EventQueue", "Arn"]}, {"Fn::GetAtt": ["DeadLetterQueue", "Arn"]}], "Condition": {"ArnEquals": {"aws:SourceArn": {"Fn::GetAtt": ["CreationRule", "Arn"]}}}},
+            {"Effect": "Deny", "Principal": "*", "Action": "sqs:*", "Resource": [{"Fn::GetAtt": ["EventQueue", "Arn"]}, {"Fn::GetAtt": ["DeadLetterQueue", "Arn"]}], "Condition": {"Bool": {"aws:SecureTransport": "false"}}}
+          ]
+        }
+      }
+    },
+    "DeadLetterAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "Cost Agent events need investigation or redrive",
+        "Namespace": "AWS/SQS", "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [{"Name": "QueueName", "Value": {"Fn::GetAtt": ["DeadLetterQueue", "QueueName"]}}],
+        "Statistic": "Maximum", "Period": 300, "EvaluationPeriods": 1, "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold", "TreatMissingData": "notBreaching",
+        "AlarmActions": {"Fn::If": ["HasAlarmTopic", [{"Ref": "AlarmTopicArn"}], {"Ref": "AWS::NoValue"}]}
+      }
+    }
+  },
+  "Outputs": {
+    "QueueUrl": {"Value": {"Ref": "EventQueue"}},
+    "DeadLetterQueueUrl": {"Value": {"Ref": "DeadLetterQueue"}},
+    "Region": {"Value": {"Ref": "AWS::Region"}}
+  }
+}

@@ -1,0 +1,60 @@
+[aws]
+# SDK credentials: AWS_PROFILE, SSO, workload role, or this optional profile.
+# Never put access keys in this file.
+# profile = "engineering"
+region = "us-east-1"
+account_id = "123456789012"
+# Optional history regions; defaults to region above. No event queue needed for history.
+# history_regions = ["us-east-1", "us-west-2"]
+# For cross-account SaaS access, use a customer role plus your unique external ID.
+# role_arn = "arn:aws:iam::123456789012:role/CostAgentObserver"
+# external_id = "replace-with-a-unique-customer-external-id"
+
+[aws.queues]
+# Deploy infra/events.json in each region to be monitored, then paste QueueUrl outputs.
+# us-east-1 = "https://sqs.us-east-1.amazonaws.com/123456789012/aws-cost-agent-events"
+# ap-south-1 = "https://sqs.ap-south-1.amazonaws.com/123456789012/aws-cost-agent-events"
+
+[agent]
+database = "data/agent.sqlite3"
+sync_hours = 6
+digest_hour_utc = 8
+# An alert requires BOTH an absolute and percentage increase. New spend uses the absolute threshold.
+anomaly_dollars = 25
+anomaly_percent = 30
+# USD forecast threshold; 0 disables it. One notification per month.
+monthly_budget = 0
+creation_alerts = true
+# Optional notifications for routine log stream / network interface creation.
+routine_creation_alerts = false
+# Notify when AWS recommends stopping/deleting an idle resource with at least this
+# much estimated monthly saving (USD). Repeats at most once per reminder interval.
+idle_alerts = true
+idle_monthly_savings = 25
+idle_reminder_days = 7
+# Also alert after repeated unused observations for this many days, regardless of cost.
+# Covers unattached EBS and fresh AWS Stop/Delete findings. Missing checks reset duration.
+unused_after_days = 7
+
+[notifications]
+# preview writes .eml files locally; ses sends to configured recipients.
+delivery = "preview"
+preview_directory = "data/email-preview"
+sender = ""
+recipients = []
+
+[ai]
+# Optional Bedrock model/inference-profile ID with Converse tool use support.
+# Bedrock and SES use the operator's credentials, not the customer observer role.
+bedrock_model_id = ""
+
+[team]
+# Case-sensitive AWS cost-allocation tag keys; activate them in AWS Billing.
+project_tag = "Project"
+owner_tag = "Owner"
+
+# Added by the cloud deployment after a verified handoff. Local workers are then disabled.
+# [cloud]
+# state_bucket = "cloudpulse-123456789012-us-east-1-state"
+# function_name = "cloudpulse-monitor"
+# region = "us-east-1"

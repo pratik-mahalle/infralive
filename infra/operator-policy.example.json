@@ -1,0 +1,8 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {"Sid": "AssumeCustomerObserver", "Effect": "Allow", "Action": "sts:AssumeRole", "Resource": "arn:aws:iam::123456789012:role/CostAgentObserver"},
+    {"Sid": "SendConfiguredEmail", "Effect": "Allow", "Action": "ses:SendEmail", "Resource": "arn:aws:ses:us-east-1:111122223333:identity/example.com", "Condition": {"StringEquals": {"ses:FromAddress": "cost-agent@example.com"}, "ForAllValues:StringEquals": {"ses:Recipients": ["cto@example.com"]}}},
+    {"Sid": "OptionalBedrockInvestigation", "Effect": "Allow", "Action": "bedrock:InvokeModel", "Resource": "arn:aws:bedrock:us-east-1::foundation-model/REPLACE_WITH_ENABLED_MODEL_ID"}
+  ]
+}

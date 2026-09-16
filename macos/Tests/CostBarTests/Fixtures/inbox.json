@@ -1,0 +1,56 @@
+{
+  "feed_id": "fixture-inbox",
+  "filter": "open",
+  "alerts": [
+    {
+      "sequence": 3,
+      "alert_id": "idle:demo",
+      "kind": "idle",
+      "title": "Resource unused at checks for 7 days",
+      "body": "Account: 123456789012\nResource: vol-demo-staging\nRegion: us-east-1\nCreator AWS identity: arn:aws:sts::123456789012:assumed-role/Engineering/alex\nCreated: 2026-09-01T10:00:00Z\n\nUnattached at every successful check for 7 days.\nPotential saving: not yet measured.\n\nSampled evidence, not proof of continuous inactivity. Confirm whether this volume is still needed. No infrastructure changes have been made.",
+      "created_at": "2026-09-16T17:00:44.554399+00:00",
+      "read_at": null,
+      "reviewed_at": null,
+      "snoozed_until": null,
+      "state": "open",
+      "unread": true,
+      "feed_id": "fixture-inbox"
+    },
+    {
+      "sequence": 2,
+      "alert_id": "budget:demo",
+      "kind": "budget",
+      "title": "Monthly forecast exceeds your budget",
+      "body": "Account: 123456789012\nForecast: USD 920.00\nBudget: USD 750.00\nBasis: before credits and refunds. This is an estimate, not a billed charge.",
+      "created_at": "2026-09-16T17:00:44.554393+00:00",
+      "read_at": null,
+      "reviewed_at": null,
+      "snoozed_until": null,
+      "state": "open",
+      "unread": true,
+      "feed_id": "fixture-inbox"
+    },
+    {
+      "sequence": 1,
+      "alert_id": "event:demo:create",
+      "kind": "event",
+      "title": "EBS volume created",
+      "body": "Account: 123456789012\nResource: vol-demo-staging\nRegion: us-east-1\nCreator AWS identity: arn:aws:sts::123456789012:assumed-role/Engineering/alex\nCreated: 2026-09-01T10:00:00Z\n\nCreation API accepted. Provisioning status is not verified.",
+      "created_at": "2026-09-16T17:00:44.554380+00:00",
+      "read_at": null,
+      "reviewed_at": null,
+      "snoozed_until": null,
+      "state": "open",
+      "unread": true,
+      "feed_id": "fixture-inbox"
+    }
+  ],
+  "counts": {
+    "total": 3,
+    "open": 3,
+    "snoozed": 0,
+    "reviewed": 0,
+    "unread": 3
+  },
+  "next_before": null
+}

@@ -1,0 +1,150 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS Cost Agent customer observer role. No cloud infrastructure mutation permissions.",
+  "Parameters": {
+    "OperatorRoleArn": {
+      "Type": "String",
+      "Description": "Exact IAM role ARN of the agent's operator workload (not an account root ARN)",
+      "AllowedPattern": "arn:aws:iam::[0-9]{12}:role/.+"
+    },
+    "ExternalId": {
+      "Type": "String",
+      "MinLength": 16,
+      "MaxLength": 1224,
+      "AllowedPattern": "[A-Za-z0-9_+=,.@:/-]+",
+      "Description": "Unique external ID assigned to this customer"
+    }
+  },
+  "Resources": {
+    "ObserverRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "CostAgentObserver",
+        "MaxSessionDuration": 3600,
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Ref": "OperatorRoleArn"
+                }
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "sts:ExternalId": {
+                    "Ref": "ExternalId"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CostAgentObservation",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "Billing",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ce:GetCostAndUsage",
+                    "ce:GetCostForecast",
+                    "ce:ListCostAllocationTags"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "Recommendations",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cost-optimization-hub:ListRecommendations"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "EC2MetadataAndPublicPricing",
+                  "Effect": "Allow",
+                  "Action": [
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeVolumes",
+                    "pricing:GetProducts"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "ConsumeAgentEvents",
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:sqs:*:${AWS::AccountId}:aws-cost-agent-events"
+                  }
+                },
+                {
+                  "Sid": "SetupChecks",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudtrail:DescribeTrails",
+                    "cloudtrail:GetTrailStatus",
+                    "cloudtrail:GetEventSelectors",
+                    "compute-optimizer:GetEnrollmentStatus",
+                    "cloudtrail:LookupEvents"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "DiscoverEventConnection",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cloudformation:DescribeStacks"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/aws-cost-agent-events/*"
+                  }
+                },
+                {
+                  "Sid": "ReadCloudPulseState",
+                  "Effect": "Allow",
+                  "Action": "s3:GetObject",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::cloudpulse-${AWS::AccountId}-*-state/state/agent.sqlite3"
+                  }
+                },
+                {
+                  "Sid": "CloudPulseActions",
+                  "Effect": "Allow",
+                  "Action": "lambda:InvokeFunction",
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:lambda:*:${AWS::AccountId}:function:cloudpulse-monitor"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "RoleArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "ObserverRole",
+          "Arn"
+        ]
+      }
+    },
+    "AccountId": {
+      "Value": {
+        "Ref": "AWS::AccountId"
+      }
+    }
+  }
+}
