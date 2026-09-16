@@ -7,6 +7,7 @@ or Xcode to use the downloaded app. Intel Macs currently require a source build.
 ## Homebrew
 
 ```sh
+brew tap pratik-mahalle/tap
 brew install --cask pratik-mahalle/tap/cloudwake
 ```
 

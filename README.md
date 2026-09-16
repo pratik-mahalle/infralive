@@ -48,6 +48,7 @@ the always-on deployment keeps email disabled.
 For **Apple silicon · macOS 13+**:
 
 ```sh
+brew tap pratik-mahalle/tap
 brew install --cask pratik-mahalle/tap/cloudwake
 ```
 
