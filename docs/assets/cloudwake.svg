@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Cloudwake</title>
+  <desc id="desc">A mint cloud outline with a pulse in its base, on a midnight navy rounded square.</desc>
+  <rect x="64" y="64" width="896" height="896" rx="204" fill="#0f1d28" stroke="#283d48" stroke-width="2"/>
+  <path transform="translate(152 152) scale(7.2)" d="M73 69C86 69 92 59 90 48C88 39 80 33 70 34C67 21 57 15 45 18C34 20 27 29 26 39C15 38 8 46 9 56C9 64 15 69 24 69H34L42 51L53 80L63 60L68 69H73" fill="none" stroke="#71efc5" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

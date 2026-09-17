@@ -1,0 +1,358 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CloudPulse five-minute AWS monitor. Read-only infrastructure access, private state, no email sending.",
+  "Parameters": {
+    "StateBucket": {
+      "Type": "String"
+    },
+    "CodeKey": {
+      "Type": "String"
+    },
+    "ScheduleState": {
+      "Type": "String",
+      "AllowedValues": [
+        "ENABLED",
+        "DISABLED"
+      ],
+      "Default": "DISABLED"
+    }
+  },
+  "Resources": {
+    "StateLock": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "lock_id",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "lock_id",
+            "KeyType": "HASH"
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expires_at",
+          "Enabled": true
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        }
+      }
+    },
+    "Failures": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "MessageRetentionPeriod": 1209600,
+        "SqsManagedSseEnabled": true
+      }
+    },
+    "MonitorLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/cloudpulse-monitor",
+        "RetentionInDays": 14
+      }
+    },
+    "MonitorRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ObserveAndPersist",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "ce:GetCostAndUsage",
+                    "ce:GetCostForecast",
+                    "ce:ListCostAllocationTags",
+                    "cost-optimization-hub:ListRecommendations",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeInstances",
+                    "cloudtrail:LookupEvents",
+                    "pricing:GetProducts"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${StateBucket}/config/monitor.json"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:s3:::${StateBucket}/state/agent.sqlite3"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:PutObject"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:s3:::${StateBucket}/state/agent.sqlite3"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:PutItem",
+                    "dynamodb:DeleteItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "StateLock",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/cloudpulse-monitor:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:ReceiveMessage",
+                    "sqs:DeleteMessage"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:sqs:*:${AWS::AccountId}:aws-cost-agent-events"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:SendMessage"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Failures",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Monitor": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": "MonitorLogs",
+      "Properties": {
+        "FunctionName": "cloudpulse-monitor",
+        "Runtime": "python3.12",
+        "Handler": "aws_cost_agent.cloud_runtime.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "MonitorRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": {
+            "Ref": "StateBucket"
+          },
+          "S3Key": {
+            "Ref": "CodeKey"
+          }
+        },
+        "MemorySize": 512,
+        "Timeout": 240,
+        "EphemeralStorage": {
+          "Size": 1024
+        },
+        "Environment": {
+          "Variables": {
+            "STATE_BUCKET": {
+              "Ref": "StateBucket"
+            },
+            "ACCOUNT_ID": {
+              "Ref": "AWS::AccountId"
+            },
+            "LOCK_TABLE": {
+              "Ref": "StateLock"
+            }
+          }
+        },
+        "DeadLetterConfig": {
+          "TargetArn": {
+            "Fn::GetAtt": [
+              "Failures",
+              "Arn"
+            ]
+          }
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "CloudPulse"
+          }
+        ]
+      }
+    },
+    "AsyncPolicy": {
+      "Type": "AWS::Lambda::EventInvokeConfig",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "Monitor"
+        },
+        "Qualifier": "$LATEST",
+        "MaximumRetryAttempts": 1,
+        "MaximumEventAgeInSeconds": 300
+      }
+    },
+    "Schedule": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "Name": "cloudpulse-monitor",
+        "ScheduleExpression": "rate(5 minutes)",
+        "State": {
+          "Ref": "ScheduleState"
+        },
+        "Targets": [
+          {
+            "Id": "Monitor",
+            "Arn": {
+              "Fn::GetAtt": [
+                "Monitor",
+                "Arn"
+              ]
+            },
+            "Input": "{\"action\":\"tick\"}",
+            "RetryPolicy": {
+              "MaximumRetryAttempts": 2,
+              "MaximumEventAgeInSeconds": 300
+            }
+          }
+        ]
+      }
+    },
+    "InvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "Monitor"
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "Schedule",
+            "Arn"
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "ErrorAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "CloudPulse could not complete a monitoring check. Inspect Lambda logs and its saved status.",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "Monitor"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching"
+      }
+    },
+    "FailureQueueAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "CloudPulse has failed invocations in its dead-letter queue.",
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": {
+              "Fn::GetAtt": [
+                "Failures",
+                "QueueName"
+              ]
+            }
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching"
+      }
+    }
+  },
+  "Outputs": {
+    "FunctionName": {
+      "Value": {
+        "Ref": "Monitor"
+      }
+    },
+    "FunctionArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Monitor",
+          "Arn"
+        ]
+      }
+    },
+    "StateBucket": {
+      "Value": {
+        "Ref": "StateBucket"
+      }
+    },
+    "Schedule": {
+      "Value": {
+        "Ref": "Schedule"
+      }
+    },
+    "FailureQueue": {
+      "Value": {
+        "Ref": "Failures"
+      }
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Private, retained CloudPulse state and deployment artifacts. No public access.",
+  "Resources": {
+    "StateBucket": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "cloudpulse-${AWS::AccountId}-${AWS::Region}-state"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "ExpireOldStateVersions",
+              "Status": "Enabled",
+              "Prefix": "state/",
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 7
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "CloudPulse"
+          }
+        ]
+      }
+    },
+    "TLSOnly": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "StateBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "StateBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${StateBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "StateBucket": {
+      "Value": {
+        "Ref": "StateBucket"
+      }
+    }
+  }
+}

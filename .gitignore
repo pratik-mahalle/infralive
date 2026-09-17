@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.env
+config.toml
+data/
+.build/
+.swiftpm/
+.DS_Store
+
+# Connection details, local billing data, and credentials
+.env.*
+!.env.example
+config.*.toml
+!config.example.toml
+*.sqlite3*
+*.sqlite*
+*.eml
+*.pem
+*.key
+*.p12
+*.mobileprovision
+.aws/
