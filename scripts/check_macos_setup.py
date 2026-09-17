@@ -20,6 +20,7 @@ def main():
     assert keychain().priority > 0
 
     assert Path(setup.__file__).resolve().is_relative_to(agent)
+    assert (agent / "LICENSE").read_text().startswith("MIT License\n")
     expected = (agent / "infra/events.json").read_text()
     assert json.loads(expected)["Resources"]["EventQueue"]["Type"] == "AWS::SQS::Queue"
     account = "123456789012"

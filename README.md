@@ -2,7 +2,7 @@
   <img src="docs/assets/cloudwake.svg" width="112" height="112" alt="Cloudwake logo">
 </p>
 <h1 align="center">Cloudwake</h1>
-<p align="center"><strong>Version 1.0.0</strong></p>
+<p align="center"><strong>Version 1.0.1 · MIT licensed</strong></p>
 <p align="center"><strong>Know what your AWS is costing. Catch what it leaves running.</strong></p>
 <p align="center">A native Mac menu bar app for AWS spending, resource activity, and savings—with optional monitoring that stays awake in AWS.</p>
 <p align="center">
@@ -218,3 +218,8 @@ identifiers and resource details from logs or screenshots.
 
 [Mac app guide](macos/README.md) · [Always-on guide](docs/always-on.md) ·
 [Operation reference](docs/reference.md) · [Logo and brand assets](docs/brand.md)
+
+## License
+
+Cloudwake is released under the [MIT License](LICENSE). Bundled third-party dependencies
+retain their respective licenses, which are included with their distributions.

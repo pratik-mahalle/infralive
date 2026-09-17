@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 — 2026-09-17
+
+- Release Cloudwake under the MIT License.
+- Include the license in the Python package and standalone Mac app.
+- No changes to AWS collection, notifications, or account connections.
+
 ## 1.0.0 — 2026-09-17
 
 - AWS spending, forecasts, credits, resource activity, and savings in a native Mac menu bar app.

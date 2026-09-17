@@ -34,7 +34,7 @@ def main():
     )
     (agent / "infra").mkdir()
     shutil.copy2(ROOT / "infra/events.json", agent / "infra/events.json")
-    for name in ("README.md", "config.example.toml"):
+    for name in ("LICENSE", "README.md", "config.example.toml"):
         shutil.copy2(ROOT / name, agent / name)
     shutil.copytree(
         runtime, resources / "Python", symlinks=True, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")

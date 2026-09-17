@@ -4,7 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aws-cost-agent"
-version = "1.0.0"
+version = "1.0.1"
+license = {file = "LICENSE"}
 description = "An evidence-backed AWS spending and infrastructure change assistant"
 requires-python = ">=3.11"
 dependencies = ["boto3>=1.40,<2", "keyring>=25,<26; sys_platform == 'darwin'"]
