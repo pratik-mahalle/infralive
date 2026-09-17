@@ -51,7 +51,7 @@ struct MenuPanel: View {
             footer
         }
         .frame(width: Self.width, height: Self.height)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background { MacPanelBackground() }
         .alert("Enable AWS savings analysis?", isPresented: $confirmSavings) {
             Button("Cancel", role: .cancel) { }
             Button("Enable for this account") { Task { await model.enableSavings() } }
@@ -67,9 +67,15 @@ struct MenuPanel: View {
             Text(model.status == nil ? "Your AWS session expired. Reconnect to load your account." : "Your AWS session expired. Showing the last collected data.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
-                Button(model.busy ? "Signing in…" : "Sign in to AWS") { Task { await model.reconnect() } }
-                    .controlSize(.small).disabled(model.busy || model.configuring)
-                Button("Connection settings") { showWindow("settings") }.controlSize(.small)
+                if model.settings.connectionMethod == "credentials" || model.settings.connectionMethod == "profile" {
+                    Button("Update credentials") { showWindow("settings") }.controlSize(.small)
+                    Button("Try again") { Task { await model.retryConnection() } }
+                        .controlSize(.small).disabled(model.busy || model.configuring)
+                } else {
+                    Button(model.busy ? "Signing in…" : "Sign in to AWS") { Task { await model.reconnect() } }
+                        .controlSize(.small).disabled(model.busy || model.configuring)
+                    Button("Connection settings") { showWindow("settings") }.controlSize(.small)
+                }
             }
             if let error = model.error, error != BridgeError.authenticationRequired.localizedDescription {
                 Text(error).font(.caption).foregroundStyle(.secondary).lineLimit(3)

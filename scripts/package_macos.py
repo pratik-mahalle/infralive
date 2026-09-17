@@ -41,7 +41,20 @@ def main():
     )
     packages = resources / "Python/lib/python3.12/site-packages"
     # Keep distribution metadata and licenses with each explicit runtime dependency.
-    for name in ("boto3", "botocore", "s3transfer", "jmespath", "python-dateutil", "urllib3", "six"):
+    for name in (
+        "boto3",
+        "botocore",
+        "s3transfer",
+        "jmespath",
+        "python-dateutil",
+        "urllib3",
+        "six",
+        "keyring",
+        "jaraco.classes",
+        "jaraco.context",
+        "jaraco.functools",
+        "more-itertools",
+    ):
         distribution = importlib.metadata.distribution(name)
         for file in distribution.files or ():
             relative = Path(file)

@@ -93,15 +93,29 @@ The Python package and CLI retain the name `aws-cost-agent` for compatibility.
 
 ## Connect your AWS account
 
-1. Configure an AWS CLI profile using your existing SSO or credential setup.
-2. Open Cloudwake's **Settings** and choose the profile and resource region.
+1. Open Cloudwake's **Settings**. Choose **AWS profile** for an existing CLI profile
+   (SSO, access keys, and credential-process profiles are supported), or **Paste credentials**.
+2. For pasted credentials, copy AWS `export` lines, credential JSON, or a credentials-file
+   section, then click **Paste from clipboard**. You can also enter an access key ID and
+   secret access key directly. Temporary credentials require the session token too.
+   Choose the resource region. AWS CLI and SSO are not required for this option.
 3. Select **Check account**, then **Connect this account**.
 4. Enable Mac notifications if you want banners. Use **Savings → Enable AWS savings…** to
    enroll the account in standard AWS recommendation analysis when needed.
 
-The connection check verifies the account and available access. Credentials stay in the AWS
-SDK credential chain; they are not copied into the app. Connecting does not deploy cloud
-infrastructure. Read calls, including Cost Explorer queries, can incur AWS charges.
+The connection check verifies the account and available access. Existing profiles use the AWS
+SDK credential chain. Imported credentials are verified with STS and saved in **macOS Keychain**;
+only account identifiers are written to local settings. Clipboard access happens only when you
+click Paste, and pasted shell text is never executed. Cloudwake cannot read exported variables
+from an already-open terminal automatically.
+
+Temporary credentials must be replaced when they expire. Open **Paste credentials**, paste a
+fresh set, check the account, and connect again. For the same account and region, this reuses
+the saved connection and history. Static access keys can be replaced the same way when rotated.
+Use an IAM identity with the permissions described below; do not use root access keys.
+Connecting does not deploy cloud infrastructure. Read calls, including Cost Explorer queries,
+can incur AWS charges. Keychain access requires an unlocked login Keychain; Linux/headless
+installations continue to use the normal AWS SDK credential chain.
 
 For manual configuration, copy [config.example.toml](config.example.toml) to `config.toml`,
 set the account and profile, then run:

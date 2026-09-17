@@ -99,12 +99,16 @@ final class AgentModel: ObservableObject {
     }
 
     func reconnect() async {
+        await retryConnection(signIn: true)
+    }
+
+    func retryConnection(signIn: Bool = false) async {
         guard !busy && !configuring && !settings.demo else { return }
         busy = true
-        notice = "Complete AWS sign-in in your browser…"
+        notice = signIn ? "Complete AWS sign-in in your browser…" : "Checking your AWS connection…"
         defer { busy = false }
         do {
-            _ = try await bridge.execute(settings: settings, command: ["login"], timeout: 200)
+            if signIn { _ = try await bridge.execute(settings: settings, command: ["login"], timeout: 200) }
             var latest = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"], timeout: 30))
             if latest.monitoring?.mode != "cloud" {
                 _ = try await bridge.execute(settings: settings, command: ["sync"], timeout: 300)

@@ -70,7 +70,7 @@ struct SettingsPanel: View {
                 }
             }.padding(26).frame(width: 550)
         }.frame(width: 550, height: min(720, (NSScreen.main?.visibleFrame.height ?? 800) - 80))
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background { MacPanelBackground() }
             .onChange(of: model.settings) { draft = $0 }
     }
 

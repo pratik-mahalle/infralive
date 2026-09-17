@@ -4,6 +4,13 @@ import SwiftUI
 struct ProfileList: Decodable {
     let profiles: [String]
     let regions: [String]
+    let ssoProfiles: [String]?
+    let currentProfile: String?
+}
+
+struct ImportedCredentials: Decodable {
+    let profile: String
+    let temporary: Bool
 }
 
 struct ConnectionCheck: Decodable, Identifiable {
@@ -39,12 +46,17 @@ struct ConnectionPanel: View {
     @State private var error: String?
     @State private var connected = false
     @State private var confirmInstall = false
+    @State private var useCredentials = false
+    @State private var credentialDraft = CredentialDraft()
+    @State private var ssoProfiles: [String] = []
+    @State private var credentialNotice: String?
     private let bridge = AgentBridge()
     private let preview: Bool
 
     init(model: AgentModel, previewReview: ConnectionReview? = nil) {
         self.model = model
-        preview = previewReview != nil
+        preview = model.isPreview || previewReview != nil
+        _useCredentials = State(initialValue: model.isPreview && CommandLine.arguments.contains("--credentials"))
         if let value = previewReview {
             _review = State(initialValue: value)
             _profiles = State(initialValue: [value.profile])
@@ -57,24 +69,32 @@ struct ConnectionPanel: View {
         VStack(alignment: .leading, spacing: 14) {
             Label("Connect your AWS account", systemImage: "link.circle.fill")
                 .font(.headline)
-            Text("Choose an AWS profile already on this Mac. Cloudwake finds your account and handles the configuration.")
+            Text("Use an AWS profile on this Mac, or paste access credentials. SSO is optional.")
                 .font(.callout).foregroundStyle(.secondary)
             if !model.settings.demo {
                 Label("AWS connection saved" + (model.status?.snapshot.map { " · " + $0.accountId } ?? ""), systemImage: "checkmark.circle")
                     .font(.caption).foregroundStyle(.teal)
             }
-            if profiles.isEmpty {
-                Text("No AWS profiles found yet. Set up an AWS profile, then reload.")
+            Picker("Connection method", selection: $useCredentials) {
+                Text("AWS profile").tag(false)
+                Text("Paste credentials").tag(true)
+            }.pickerStyle(.segmented)
+            if useCredentials {
+                CredentialEntry(draft: $credentialDraft)
+            } else if profiles.isEmpty {
+                Text("No AWS profiles found. Paste credentials above, or run aws configure in Terminal and reload.")
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
-                    Link("Set up AWS sign-in ↗", destination: URL(string: "https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html")!)
+                    Link("AWS profile setup ↗", destination: URL(string: "https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html")!)
                     Button("Reload profiles") { Task { await loadProfiles() } }
                 }
             } else {
                 Picker("AWS profile", selection: $profile) {
                     Text("Choose a profile…").tag("")
-                    ForEach(profiles, id: \.self) { Text($0).tag($0) }
+                    ForEach(profiles, id: \.self) { Text($0.replacingOccurrences(of: "cloudwake-keychain-", with: "Saved credentials · ")).tag($0) }
                 }
+            }
+            if useCredentials || !profiles.isEmpty {
                 Picker("Resource region", selection: $region) {
                     ForEach(regions, id: \.self) { Text($0).tag($0) }
                 }
@@ -82,14 +102,20 @@ struct ConnectionPanel: View {
                     .font(.caption).foregroundStyle(.secondary)
                 HStack {
                     Button(review == nil ? "Check account" : "Check again") { Task { await check() } }
-                        .buttonStyle(.borderedProminent).tint(.teal).disabled(profile.isEmpty)
-                    Button("Sign in with SSO…") { Task { await signIn() } }.disabled(profile.isEmpty)
+                        .buttonStyle(.borderedProminent).tint(.teal)
+                        .disabled(useCredentials ? (credentialDraft.hasInput ? !credentialDraft.isReady : profile.isEmpty) : profile.isEmpty)
+                    if !useCredentials && ssoProfiles.contains(profile) {
+                        Button("Sign in with SSO…") { Task { await signIn() } }
+                    }
                     Spacer()
                     Button { Task { await loadProfiles() } } label: { Image(systemName: "arrow.clockwise") }
                         .accessibilityLabel("Reload AWS profiles")
                 }
                 Text("Checking reads AWS account and feature status. Cost Explorer API charges may apply.")
                     .font(.caption2).foregroundStyle(.secondary)
+            }
+            if let credentialNotice {
+                Text(credentialNotice).font(.caption).foregroundStyle(.secondary)
             }
             if working {
                 HStack(spacing: 8) { ProgressView().controlSize(.small); Text(progress).font(.caption) }
@@ -143,6 +169,9 @@ struct ConnectionPanel: View {
         .task { if !preview { await loadProfiles() } }
         .onChange(of: profile) { _ in resetReview() }
         .onChange(of: region) { _ in resetReview() }
+        .onChange(of: useCredentials) { _ in resetReview(); credentialNotice = nil; credentialDraft = CredentialDraft(); profile = "" }
+        .onChange(of: credentialDraft) { _ in resetReview() }
+        .onDisappear { credentialDraft = CredentialDraft() }
         .onChange(of: working) { model.configuring = $0 }
         .alert("Set up resource notifications?", isPresented: $confirmInstall) {
             Button("Cancel", role: .cancel) { }
@@ -168,6 +197,8 @@ struct ConnectionPanel: View {
         do {
             let list = try decode(ProfileList.self, data: await bridge.execute(settings: model.settings, command: ["setup", "profiles"], timeout: 20))
             profiles = list.profiles; regions = list.regions
+            ssoProfiles = list.ssoProfiles ?? []
+            if profile.isEmpty, let current = list.currentProfile, profiles.contains(current) { profile = current }
             if !profiles.contains(profile) { profile = "" }
             error = nil
         } catch { self.error = error.localizedDescription }
@@ -177,6 +208,16 @@ struct ConnectionPanel: View {
         working = true; progress = "Checking your AWS account…"; review = nil; connected = false; error = nil
         defer { working = false }
         do {
+            if useCredentials && credentialDraft.isReady {
+                let imported = try decode(ImportedCredentials.self, data: await bridge.execute(settings: model.settings,
+                    command: ["setup", "import-credentials", "--region", region], timeout: 60, input: try credentialDraft.input()))
+                profile = imported.profile
+                if !profiles.contains(profile) { profiles.append(profile) }
+                credentialDraft = CredentialDraft()
+                credentialNotice = imported.temporary
+                    ? "Saved in macOS Keychain. Temporary credentials expire; paste a fresh set here when needed."
+                    : "Saved in macOS Keychain. You can replace these credentials here when you rotate your keys."
+            }
             review = try decode(ConnectionReview.self, data: await bridge.execute(settings: model.settings, command: arguments("check"), timeout: 240))
         } catch { self.error = error.localizedDescription }
     }
@@ -197,6 +238,7 @@ struct ConnectionPanel: View {
                 command: arguments("connect") + ["--account", review.accountId]))
             var settings = model.settings
             settings.configPath = saved.configPath; settings.demo = false
+            settings.connectionMethod = profile.hasPrefix("cloudwake-keychain-") ? "credentials" : (ssoProfiles.contains(profile) ? "sso" : "profile")
             await model.save(settings)
             connected = model.settings == settings && model.error == nil
             if !connected { error = model.error ?? "Could not save the connection. Try again." }

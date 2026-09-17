@@ -14,6 +14,10 @@ def main():
     agent = app / "Contents/Resources/Agent"
     sys.path.insert(0, str(agent / "src"))
     from aws_cost_agent import setup
+    from aws_cost_agent.credentials import keychain
+
+    # Import the real macOS backend from the bundle without touching any saved secrets.
+    assert keychain().priority > 0
 
     assert Path(setup.__file__).resolve().is_relative_to(agent)
     expected = (agent / "infra/events.json").read_text()

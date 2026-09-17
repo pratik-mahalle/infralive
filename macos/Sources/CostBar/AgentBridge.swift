@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 enum BridgeError: LocalizedError {
@@ -30,6 +31,7 @@ struct AgentSettings: Codable, Equatable {
     var configPath: String
     var demo: Bool
     var dataPath: String? = nil
+    var connectionMethod: String? = nil
 
     var workingDirectory: String { dataPath ?? projectPath }
 
@@ -70,7 +72,8 @@ struct AgentSettings: Codable, Equatable {
         try FileManager.default.createDirectory(atPath: workingDirectory, withIntermediateDirectories: true)
         process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory)
         // Argument arrays, never a shell command. Paths and questions are literal arguments.
-        process.arguments = ["-m", "aws_cost_agent"] + (setup ? [] : (demo ? ["--demo"] : ["--config", configPath])) + command
+        let configuration = !demo && FileManager.default.fileExists(atPath: configPath) ? ["--config", configPath] : []
+        process.arguments = ["-m", "aws_cost_agent"] + (setup ? configuration : (demo ? ["--demo"] : ["--config", configPath])) + command
         var environment = ProcessInfo.processInfo.environment
         environment["PYTHONPATH"] = projectPath + "/src"
         environment["PYTHONUNBUFFERED"] = "1"
@@ -94,7 +97,18 @@ extension AgentExecuting {
 
 actor AgentBridge: AgentExecuting {
     func execute(settings: AgentSettings, command: [String], timeout: TimeInterval = 90) throws -> Data {
+        try execute(settings: settings, command: command, timeout: timeout, input: nil)
+    }
+
+    func execute(settings: AgentSettings, command: [String], timeout: TimeInterval = 90, input: Data?) throws -> Data {
+        guard (input?.count ?? 0) <= 32768 else { throw BridgeError.message("Credential input is too large.") }
         let process = try settings.makeProcess(command)
+        // Credentials travel through an anonymous pipe, never argv, environment, or temporary files.
+        let inputPipe = Pipe()
+        // A helper that exits before reading must not terminate the app with SIGPIPE.
+        _ = fcntl(inputPipe.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
+        process.standardInput = inputPipe
+        defer { try? inputPipe.fileHandleForReading.close(); try? inputPipe.fileHandleForWriting.close() }
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
@@ -108,6 +122,12 @@ actor AgentBridge: AgentExecuting {
         process.standardOutput = outHandle
         process.standardError = errHandle
         try process.run()
+        try inputPipe.fileHandleForReading.close()
+        let inputHandle = inputPipe.fileHandleForWriting
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let input { try? inputHandle.write(contentsOf: input) }
+            try? inputHandle.close()
+        }
         let deadline = Date().addingTimeInterval(timeout)
         while process.isRunning {
             if Date() > deadline || Task.isCancelled {

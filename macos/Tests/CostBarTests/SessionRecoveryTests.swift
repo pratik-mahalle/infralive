@@ -73,4 +73,15 @@ struct SessionRecoveryTests {
         #expect(model.status?.snapshot?.analysis.displayedSpend == fixture.snapshot?.analysis.displayedSpend)
         #expect(await bridge.commands == [["login"]])
     }
+
+    @Test @MainActor func nonSSORetryDoesNotInvokeSSOOrCloudCollector() async throws {
+        let data = try cloudFixture()
+        let fixture = try AgentStatus.decode(data)
+        let bridge = RecoveryBridge(status: data)
+        let model = AgentModel(start: false, fixture: fixture, bridge: bridge)
+        model.recordFailure(BridgeError.authenticationRequired)
+        await model.retryConnection()
+        #expect(!model.needsSignIn)
+        #expect(await bridge.commands == [["status"]])
+    }
 }

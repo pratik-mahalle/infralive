@@ -13,3 +13,11 @@ ruff==0.16.7
 s3transfer==0.19.2
 six==1.17.0
 urllib3==2.8.0
+keyring==25.7.0; sys_platform == 'darwin'
+jaraco.classes==3.4.0; sys_platform == 'darwin'
+jaraco.context==6.1.2; sys_platform == 'darwin'
+jaraco.functools==4.6.0; sys_platform == 'darwin'
+more-itertools==11.1.0; sys_platform == 'darwin'
+backports.tarfile==1.2.0; sys_platform == 'darwin' and python_version < '3.12'
+importlib_metadata==9.0.1; sys_platform == 'darwin' and python_version < '3.12'
+zipp==4.1.0; sys_platform == 'darwin' and python_version < '3.12'

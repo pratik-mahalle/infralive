@@ -26,6 +26,10 @@ def parser():
     setup = commands.add_parser("setup", help="Guided AWS profile connection for the macOS app")
     actions = setup.add_subparsers(dest="setup_action", required=True)
     actions.add_parser("profiles", help="List local AWS profile names without making AWS calls")
+    credentials = actions.add_parser(
+        "import-credentials", help="Verify credentials from stdin and save in macOS Keychain"
+    )
+    credentials.add_argument("--region", required=True)
     for action in ("check", "connect", "install-events", "login"):
         command = actions.add_parser(action)
         command.add_argument("--profile", required=True)
@@ -186,8 +190,14 @@ def main(argv=None):
             "ExpiredToken",
             "ExpiredTokenException",
             "InvalidGrantException",
+            "InvalidClientTokenId",
+            "UnrecognizedClientException",
+            "InvalidAccessKeyId",
         }:
-            print("AWS sign-in required: Your session expired. Sign in again to reconnect.", file=sys.stderr)
+            print(
+                "AWS sign-in required: Your session expired or credentials were rejected. Reconnect in Settings.",
+                file=sys.stderr,
+            )
             return 1
         print(
             f"AWS operation failed ({code}). Check credentials, enrollment, region and permissions.",

@@ -75,7 +75,11 @@ then click **Check account → Connect this account**. Cloudwake detects the acc
 cost and recommendation access, and saves an isolated configuration automatically. Existing
 event queues are discovered from the `aws-cost-agent-events` stack. No manual TOML editing
 or queue URL copying is needed for this flow. Use **Sign in with SSO…** to renew an existing
-IAM Identity Center session. Creating a first AWS profile still requires AWS CLI setup.
+IAM Identity Center session. Alternatively, choose **Paste credentials** and paste AWS export
+lines, credential JSON, or a credentials-file section. You can also enter keys manually.
+Temporary credentials require a session token. Credentials are verified with STS before being
+saved in macOS Keychain, and are passed to the helper through stdin, never command arguments.
+SSO and AWS CLI are optional for this flow. Expired temporary credentials need a fresh import.
 
 If resource notifications are missing, **Set up resource notifications…** shows the account,
 region and resources before **Install in AWS** creates the event stack. This requires an

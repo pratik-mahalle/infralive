@@ -11,7 +11,6 @@ import tempfile
 from dataclasses import asdict, replace
 from pathlib import Path
 
-import boto3
 from botocore.config import Config as SDKConfig
 from botocore.exceptions import ClientError
 
@@ -76,7 +75,9 @@ def main():
         raise ValueError(
             "Deploy using a direct AWS profile in the monitored account, not demo or an observer role"
         )
-    session = boto3.Session(profile_name=config.profile, region_name=config.region)
+    from aws_cost_agent.credentials import session_for
+
+    session = session_for(config.profile, config.region)
     sdk = SDKConfig(retries={"mode": "standard", "max_attempts": 3}, connect_timeout=10, read_timeout=30)
     account = session.client("sts", config=sdk).get_caller_identity()["Account"]
     if account != config.account_id:

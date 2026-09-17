@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -17,17 +18,34 @@ from botocore.exceptions import ClientError
 STACK = "aws-cost-agent-events"
 
 
-def profiles():
+def profiles(root=Path(".")):
+    from .credentials import saved_profiles
+
     session = boto3.Session()
-    return {"profiles": sorted(session.available_profiles), "regions": session.get_available_regions("ec2")}
+    configured = session._session.full_config.get("profiles", {})
+    return {
+        "profiles": sorted(set(session.available_profiles + saved_profiles(root))),
+        "sso_profiles": [
+            name
+            for name, value in configured.items()
+            if value.get("sso_session") or value.get("sso_start_url")
+        ],
+        "regions": session.get_available_regions("ec2"),
+    }
+
+
+def validate_region(region):
+    if region not in boto3.Session().get_available_regions("ec2"):
+        raise ValueError("Choose a supported AWS region.")
 
 
 def session_for(profile, region):
+    from .credentials import session_for as credential_session
+
     if not profile:
         raise ValueError("Choose an AWS profile first.")
-    if region not in boto3.Session().get_available_regions("ec2"):
-        raise ValueError("Choose a supported AWS region.")
-    return boto3.Session(profile_name=profile, region_name=region)
+    validate_region(region)
+    return credential_session(profile, region)
 
 
 def client(session, service, region=None):
@@ -197,7 +215,7 @@ def write_connection(profile, region, account, queue=None, root=Path(".")):
             return json.dumps(value, ensure_ascii=False)
 
         content = (
-            f"# Created by Cost Bar. Credentials remain in your AWS profile.\n[aws]\n"
+            f"# Created by Cloudwake. Credentials remain in your AWS profile or macOS Keychain.\n[aws]\n"
             f"profile = {q(profile)}\nregion = {q(region)}\naccount_id = {q(account)}\n\n"
             f"{queue_section(region, queue)}\n\n[agent]\n"
             f"database = {q(str(folder / 'agent.sqlite3'))}\n"
@@ -276,8 +294,14 @@ def aws_cli_executable():
 
 
 def login(profile):
+    from .credentials import managed_account
+
     if not profile:
         raise ValueError("No named AWS profile is configured. Reconnect your account in Settings.")
+    if managed_account(profile):
+        raise ValueError(
+            "Open Settings → Paste credentials to replace this account's credentials. SSO is not required."
+        )
     executable = aws_cli_executable()
     if not executable:
         raise ValueError("Install AWS CLI v2 to sign in with SSO.")
@@ -301,7 +325,16 @@ def login(profile):
 
 def execute(args):
     if args.setup_action == "profiles":
-        return profiles()
+        result = profiles()
+        if args.config and Path(args.config).is_file():
+            from .config import load_config
+
+            result["current_profile"] = load_config(args.config).profile
+        return result
+    if args.setup_action == "import-credentials":
+        from .credentials import MAX_INPUT, import_credentials
+
+        return import_credentials(sys.stdin.read(MAX_INPUT + 1), args.region)
     if args.setup_action == "check":
         return check(args.profile, args.region)
     if args.setup_action == "login":

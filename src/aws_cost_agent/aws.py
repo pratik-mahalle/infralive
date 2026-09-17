@@ -6,16 +6,16 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from .analysis import money
+from .credentials import session_for
 from .events import clean
 
 
 class AWS:
     def __init__(self, config):
-        import boto3
         from botocore.config import Config as SDKConfig
 
         self.config = config
-        self.base = boto3.Session(profile_name=config.profile, region_name=config.region)
+        self.base = session_for(config.profile, config.region)
         self.session = self.base
         self.expires = 0
         self.sdk_config = SDKConfig(
