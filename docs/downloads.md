@@ -1,8 +1,8 @@
 # Install Cloudwake
 
-Cloudwake v1.2.0 provides a standalone **Apple silicon** app for **macOS 13+**.
+Cloudwake v1.2.1 provides a standalone **Apple silicon** app for **macOS 13+**.
 Python and the AWS SDK are bundled. You do not need a source checkout, separate Python install,
-or Xcode to use the downloaded app. Intel Macs currently require a source build.
+or Xcode to use the downloaded app. The current download does not support Intel Macs.
 
 ## Homebrew
 
@@ -13,8 +13,8 @@ brew install --cask pratik-mahalle/tap/cloudwake
 
 ## Direct download
 
-Download `Cloudwake-1.2.0-macos-arm64.zip` from the
-[v1.2.0 release](https://github.com/pratik-mahalle/infralive/releases/tag/v1.2.0), unzip it,
+Download `Cloudwake-1.2.1-macos-arm64.zip` from the
+[v1.2.1 release](https://github.com/pratik-mahalle/cloudwake-releases/releases/tag/v1.2.1), unzip it,
 and move Cloudwake.app to Applications. Open it and look for the cloud in your menu bar.
 
 This build is ad-hoc signed and **not Apple-notarized**. macOS may require approval in
@@ -68,32 +68,18 @@ For pasted temporary credentials, choose **Update credentials → Paste credenti
 a fresh set. For the same account and region, connecting again preserves saved history.
 The sign-in button requires AWS CLI v2. Cloudwake does not extend your organization's session duration.
 
-## Build a release
+## Cloud companion
 
-On an Apple silicon Mac with the development dependencies installed:
+Enable Mac notifications in Settings. A cloud companion appears for alerts while using Cloudwake
+or when you click a native notification. Background alerts use macOS banners and respect Focus.
+Review opens the alert's account inbox. In 1 hour snoozes it in that inbox; it does not schedule a
+new desktop banner. Use Settings → Mac notifications → Preview to try the bubble.
 
-```sh
-uv python install 3.12 --install-dir dist/python-runtime --no-bin
-bash macos/build.sh
-.venv/bin/python scripts/package_macos.py --python-runtime dist/python-runtime/cpython-3.12.11-macos-aarch64-none
-```
+## License and support
 
-Use the actual Python 3.12 directory printed by uv if its patch version differs. The packager
-copies only application code, explicit runtime dependencies (with their license metadata), and
-the standalone interpreter. It excludes live configuration and data, signs the bundle, runs an
-offline demo check, and creates a ZIP and checksum file under `dist/release/`.
+Cloudwake v1.2.1 and later are proprietary. The official app is currently available for personal
+and internal business use at no charge under the license included with the application.
+Earlier MIT releases retain their original terms. Third-party dependencies keep their licenses.
 
-Before publishing, extract the ZIP in a different directory and run:
-
-```sh
-/path/to/Cloudwake.app/Contents/MacOS/CostBar --check-bundle
-```
-
-Also validate the event installer using the bundled interpreter:
-
-```sh
-/path/to/Cloudwake.app/Contents/Resources/Python/bin/python3.12 -B -s scripts/check_macos_setup.py /path/to/Cloudwake.app
-```
-
-These checks use disposable data and do not contact AWS or write account settings.
-The packaging script runs both checks before producing a release archive.
+[Release notes](https://github.com/pratik-mahalle/cloudwake-releases/releases) ·
+[Support](https://github.com/pratik-mahalle/cloudwake-releases/issues)

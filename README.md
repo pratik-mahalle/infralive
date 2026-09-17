@@ -2,7 +2,7 @@
   <img src="docs/assets/cloudwake.svg" width="112" height="112" alt="Cloudwake logo">
 </p>
 <h1 align="center">Cloudwake</h1>
-<p align="center"><strong>Version 1.2.0 · MIT licensed</strong></p>
+<p align="center"><strong>Version 1.2.1 · Private source</strong></p>
 <p align="center"><strong>Know what your AWS is costing. Catch what it leaves running.</strong></p>
 <p align="center">A native Mac menu bar app for AWS spending, resource activity, and savings—with optional monitoring that stays awake in AWS.</p>
 <p align="center">
@@ -55,7 +55,7 @@ brew tap pratik-mahalle/tap
 brew install --cask pratik-mahalle/tap/cloudwake
 ```
 
-Or [download Cloudwake](https://github.com/pratik-mahalle/infralive/releases/latest).
+Or [download Cloudwake](https://github.com/pratik-mahalle/cloudwake-releases/releases/latest).
 The app includes Python and the AWS SDK. This build is not Apple-notarized;
 see the [installation notes](docs/downloads.md) for first launch and AWS profile setup.
 Intel Macs can build from source below.
@@ -219,5 +219,7 @@ identifiers and resource details from logs or screenshots.
 
 ## License
 
-Cloudwake is released under the [MIT License](LICENSE). Bundled third-party dependencies
-retain their respective licenses, which are included with their distributions.
+Cloudwake v1.2.1 and later use the [proprietary application license](LICENSE). Source is private.
+The official app is currently available for personal and internal business use at no charge.
+Previously published versions through v1.2.0 retain their [MIT license](docs/legacy-mit-license.txt).
+Bundled third-party dependencies retain their respective licenses.

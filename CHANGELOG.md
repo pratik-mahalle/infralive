@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1 — 2026-09-18
+
+- Move public downloads and setup documentation to a release-only repository; application source stays private.
+- Apply proprietary licensing to this version while preserving prior MIT grants and third-party license notices.
+- Package the collector as bytecode and keep readable application source out of the Mac download.
+- Preserve the cloud companion, redesigned interface, AWS connections, and monitoring history.
+
 ## 1.2.0 — 2026-09-18
 
 - Introduce a cloud mascot and compact companion alerts with account-specific Review and one-hour inbox snooze actions.

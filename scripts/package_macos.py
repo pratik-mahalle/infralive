@@ -32,10 +32,33 @@ def main():
         agent / "src/aws_cost_agent",
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
+    # Ship our collector as Python 3.12 bytecode, not readable source. Use legacy
+    # adjacent .pyc files so imports still work after the source files are removed.
+    # Bytecode is packaging, not an encryption or reverse-engineering guarantee.
+    subprocess.run(
+        [
+            str(runtime / "bin/python3.12"),
+            "-m",
+            "compileall",
+            "-q",
+            "-b",
+            "-s",
+            str(agent / "src"),
+            "-p",
+            "Cloudwake",
+            str(agent / "src"),
+        ],
+        check=True,
+    )
+    for source in (agent / "src").rglob("*.py"):
+        if not source.with_suffix(".pyc").is_file():
+            raise RuntimeError(f"Missing compiled collector module: {source.name}")
+        source.unlink()
     (agent / "infra").mkdir()
     shutil.copy2(ROOT / "infra/events.json", agent / "infra/events.json")
-    for name in ("LICENSE", "README.md", "config.example.toml"):
+    for name in ("LICENSE", "config.example.toml"):
         shutil.copy2(ROOT / name, agent / name)
+    shutil.copy2(ROOT / "docs/downloads.md", agent / "README.md")
     shutil.copytree(
         runtime, resources / "Python", symlinks=True, ignore=shutil.ignore_patterns("__pycache__", "*.pyc")
     )

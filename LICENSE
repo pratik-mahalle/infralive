@@ -1,21 +1,25 @@
-MIT License
+Cloudwake Proprietary License
 
-Copyright (c) 2026 Pratik Mahalle
+Copyright (c) 2026 Pratik Mahalle. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Applies to Cloudwake v1.2.1 and later versions distributed with this notice.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+You may download, install, and run the official, unmodified Cloudwake application
+for personal use or for your organization's internal business use. No fee is
+charged for this permission for this version. You may make copies as necessary
+for installation and backup.
+
+This permission does not grant access to the source code or permission to
+redistribute, sublicense, sell, modify, or create derivative works of Cloudwake,
+except as permitted by applicable law or by separate written permission from
+Pratik Mahalle. All rights not expressly granted are reserved.
+
+Cloudwake versions through v1.2.0 were distributed under the MIT License.
+This notice does not revoke or restrict rights granted for those earlier copies.
+Third-party components retain their respective licenses, included with the app;
+this notice does not replace or restrict those licenses.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. TO THE EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER IS NOT
+LIABLE FOR CLAIMS OR DAMAGES ARISING FROM USE OF THE SOFTWARE.

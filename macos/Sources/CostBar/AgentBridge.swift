@@ -54,7 +54,7 @@ struct AgentSettings: Codable, Equatable {
 
     static var initial: AgentSettings {
         if let resources = Bundle.main.resourceURL,
-           FileManager.default.fileExists(atPath: resources.appendingPathComponent("Agent/src/aws_cost_agent/cli.py").path) {
+           hasAgent(at: resources.appendingPathComponent("Agent").path) {
             let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("Cloudwake")
             return bundled(resources: resources, support: support)
@@ -66,8 +66,14 @@ struct AgentSettings: Codable, Equatable {
                              configPath: root + "/config.toml", demo: true)
     }
 
+    static func hasAgent(at root: String) -> Bool {
+        ["cli.py", "cli.pyc"].contains {
+            FileManager.default.fileExists(atPath: root + "/src/aws_cost_agent/" + $0)
+        }
+    }
+
     func makeProcess(_ command: [String]) throws -> Process {
-        guard FileManager.default.fileExists(atPath: projectPath + "/src/aws_cost_agent/cli.py") else {
+        guard Self.hasAgent(at: projectPath) else {
             throw BridgeError.message("Choose the aws-cost-agent project folder in Settings.")
         }
         guard FileManager.default.isExecutableFile(atPath: pythonPath) else {

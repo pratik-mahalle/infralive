@@ -20,7 +20,9 @@ def main():
     assert keychain().priority > 0
 
     assert Path(setup.__file__).resolve().is_relative_to(agent)
-    assert (agent / "LICENSE").read_text().startswith("MIT License\n")
+    assert (agent / "LICENSE").read_text().startswith("Cloudwake Proprietary License\n")
+    assert not list((agent / "src").rglob("*.py")), "Readable collector source must not ship"
+    assert Path(setup.__file__).suffix == ".pyc"
     expected = (agent / "infra/events.json").read_text()
     assert json.loads(expected)["Resources"]["EventQueue"]["Type"] == "AWS::SQS::Queue"
     account = "123456789012"
