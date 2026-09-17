@@ -259,3 +259,51 @@ def test_expired_sso_returns_actionable_error(monkeypatch, capsys):
     error = capsys.readouterr().err
     assert "AWS sign-in required:" in error
     assert "Traceback" not in error
+
+
+@pytest.mark.parametrize("folder", ["homebrew", ".homebrew", ".local"])
+def test_sso_finds_user_install_with_minimal_finder_path(monkeypatch, tmp_path, folder):
+    monkeypatch.setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
+    monkeypatch.delenv("HOMEBREW_PREFIX", raising=False)
+    monkeypatch.setattr(setup.shutil, "which", lambda _: None)
+    monkeypatch.setattr(setup.Path, "home", lambda: tmp_path)
+    executable = tmp_path / folder / "bin/aws"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\nexit 0\n")
+    executable.chmod(0o755)
+    # Isolate system installations, so this also works on CI machines with AWS CLI.
+    actual_is_file = Path.is_file
+    monkeypatch.setattr(Path, "is_file", lambda p: p.is_relative_to(tmp_path) and actual_is_file(p))
+    run = Mock(return_value=SimpleNamespace(returncode=0))
+    monkeypatch.setattr(setup.subprocess, "run", run)
+    assert setup.login("team-sso") == {"signed_in": True}
+    assert run.call_args.args[0] == [str(executable), "sso", "login", "--profile", "team-sso"]
+    assert "shell" not in run.call_args.kwargs
+
+
+def test_cli_discovery_respects_custom_homebrew_prefix(monkeypatch, tmp_path):
+    monkeypatch.setattr(setup.shutil, "which", lambda _: None)
+    monkeypatch.setenv("HOMEBREW_PREFIX", str(tmp_path / "custom prefix"))
+    executable = tmp_path / "custom prefix/bin/aws"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\nexit 0\n")
+    executable.chmod(0o755)
+    assert setup.aws_cli_executable() == str(executable)
+    monkeypatch.setattr(setup.shutil, "which", lambda _: "/preferred/bin/aws")
+    assert setup.aws_cli_executable() == "/preferred/bin/aws"
+
+
+def test_missing_or_non_executable_cli_is_actionable(monkeypatch, tmp_path):
+    monkeypatch.setattr(setup.shutil, "which", lambda _: None)
+    monkeypatch.delenv("HOMEBREW_PREFIX", raising=False)
+    monkeypatch.setattr(setup.Path, "home", lambda: tmp_path)
+    executable = tmp_path / "homebrew/bin/aws"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("not executable")
+    actual_is_file = Path.is_file
+    monkeypatch.setattr(Path, "is_file", lambda p: p.is_relative_to(tmp_path) and actual_is_file(p))
+    run = Mock()
+    monkeypatch.setattr(setup.subprocess, "run", run)
+    with pytest.raises(ValueError, match="Install AWS CLI v2"):
+        setup.login("team-sso")
+    run.assert_not_called()

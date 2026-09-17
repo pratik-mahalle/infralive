@@ -1,6 +1,6 @@
 # Install Cloudwake
 
-Cloudwake v0.3.2 provides a standalone **Apple silicon** app for **macOS 13+**.
+Cloudwake v0.3.3 provides a standalone **Apple silicon** app for **macOS 13+**.
 Python and the AWS SDK are bundled. You do not need a source checkout, separate Python install,
 or Xcode to use the downloaded app. Intel Macs currently require a source build.
 
@@ -13,8 +13,8 @@ brew install --cask pratik-mahalle/tap/cloudwake
 
 ## Direct download
 
-Download `Cloudwake-0.3.2-macos-arm64.zip` from the
-[v0.3.2 release](https://github.com/pratik-mahalle/infralive/releases/tag/v0.3.2), unzip it,
+Download `Cloudwake-0.3.3-macos-arm64.zip` from the
+[v0.3.3 release](https://github.com/pratik-mahalle/infralive/releases/tag/v0.3.3), unzip it,
 and move Cloudwake.app to Applications. Open it and look for the cloud in your menu bar.
 
 This early build is ad-hoc signed and **not Apple-notarized**. macOS may require approval in

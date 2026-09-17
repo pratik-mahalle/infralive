@@ -258,12 +258,27 @@ def install_events(profile, region, account, session=None, root=Path(".")):
     return {"config_path": write_connection(profile, region, account, queue, root), "warning": None}
 
 
+def aws_cli_executable():
+    """Find AWS CLI without depending on a Finder-launched app's minimal PATH."""
+    if executable := shutil.which("aws"):
+        return executable
+    candidates = [
+        Path("/opt/homebrew/bin/aws"),
+        Path("/usr/local/bin/aws"),
+        Path.home() / "homebrew/bin/aws",
+        Path.home() / ".homebrew/bin/aws",
+        Path.home() / ".local/bin/aws",
+    ]
+    if prefix := os.environ.get("HOMEBREW_PREFIX"):
+        if Path(prefix).is_absolute():
+            candidates.insert(0, Path(prefix) / "bin/aws")
+    return next((str(path) for path in candidates if path.is_file() and os.access(path, os.X_OK)), None)
+
+
 def login(profile):
     if not profile:
         raise ValueError("No named AWS profile is configured. Reconnect your account in Settings.")
-    executable = shutil.which("aws") or next(
-        (p for p in ("/opt/homebrew/bin/aws", "/usr/local/bin/aws") if os.access(p, os.X_OK)), None
-    )
+    executable = aws_cli_executable()
     if not executable:
         raise ValueError("Install AWS CLI v2 to sign in with SSO.")
     try:
