@@ -74,28 +74,3 @@ To move back to local monitoring, first disable the cloud schedule and preserve 
 database, then reconnect the local config. Do not restore a stale database while the cloud writer
 is running. Runtime configuration and code upgrades should be performed with the schedule paused;
 retain the remote database and its feed identity.
-
-## Team spending
-
-Overview provides **Service**, **Project** and **Owner** views of month-to-date charges before
-credits and refunds. The tag keys default to `Project` and `Owner` and can be set in `[team]`:
-
-```toml
-[team]
-project_tag = "Project"
-owner_tag = "Owner"
-```
-
-Project and owner are alternative breakdowns of the same total, not additive amounts. Empty
-billing-tag values appear as **Unassigned**. A literal tag value named `Unassigned` remains a
-separate row. Fractional-cent rounding is reconciled to the displayed total. If tag access,
-activation or reconciliation fails, the full known bill appears as Unassigned with an explicit
-attribution warning; this does not claim that the physical resources are all untagged.
-
-Billing tags must be applied to resources and activated in AWS Billing before attribution is
-available. Activation and billing ingestion can take time, and past costs may remain unassigned.
-Cloudwake does not guess which teammate owns a charge or automatically retag existing resources.
-
-References: [AWS cost-allocation tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html),
-[Cost Explorer grouping](https://docs.aws.amazon.com/cli/latest/reference/ce/get-cost-and-usage.html),
-[Lambda retries](https://docs.aws.amazon.com/lambda/latest/dg/invocation-async-error-handling.html).

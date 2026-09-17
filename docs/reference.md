@@ -246,11 +246,10 @@ the existing Mac notification permission and email delivery settings; `idle_aler
 disables both types of idle notification. EBS savings remain unmeasured unless AWS provides an
 estimate; the agent does not delete or stop resources.
 
-## Team spending and always-on monitoring
+## Always-on monitoring
 
-Overview can group the same monthly bill by service, `Project`, or `Owner`, including an explicit
-Unassigned category. Cloudwake can also run its collector in AWS while the Mac is asleep, with
-a shared private inbox and saved monitoring history. See the [setup and operation guide](always-on.md).
+Cloudwake can run its collector in AWS while the Mac is asleep, with a shared private inbox
+and saved monitoring history. See the [setup and operation guide](always-on.md).
 This deployment keeps email disabled.
 
 ## Email and chat

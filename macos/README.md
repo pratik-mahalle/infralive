@@ -112,11 +112,7 @@ quits. Use a server deployment for continuous monitoring independent of your lap
 of the app can leave its worker running; it will be recognized as an external worker on relaunch.
 This version has no login-item installation or automatic cloud remediation.
 
-## Team spending and cloud monitoring
-
-In **Overview**, choose **Project** or **Owner** below the chart. Both are separate views of the
-same charges before credits and refunds, using case-sensitive billing tags. Unavailable attribution
-shows the known total as Unassigned with an explanation. The tag-management link opens AWS Billing.
+## Cloud monitoring
 
 For an activated cloud connection, the footer says **Monitoring in AWS** and the collector keeps
 running while the Mac sleeps or the app is closed. Inbox actions update the private cloud state.

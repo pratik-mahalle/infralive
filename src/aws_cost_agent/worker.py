@@ -13,7 +13,6 @@ from .idle import idle_candidates, queue_idle_alerts
 from .notifications import deliver
 from .savings import recommendation_status, review_leads
 from .store import now_iso
-from .teams import collect_teams
 from .unused import collect_unused, track_unused
 
 logger = logging.getLogger(__name__)
@@ -73,7 +72,6 @@ def sync(store, provider, config, today=None):
         "idle_alerts": idle,
         "warnings": warnings,
         "daily_costs": rows,
-        "team_spending": collect_teams(provider, config, today, account, analysis),
     }
     with store.transaction():
         snapshot["unused_resources"] = track_unused(

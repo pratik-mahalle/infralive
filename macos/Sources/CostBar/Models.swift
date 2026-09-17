@@ -38,7 +38,6 @@ struct Snapshot: Decodable {
     let reviewLeads: [ReviewLead]?
     let unusedResources: [UnusedResource]?
     let unusedMonitoring: UnusedMonitoring?
-    let teamSpending: TeamSpending?
 
     var collectedDate: Date? { parseTimestamp(collectedAt) }
     var isStale: Bool { collectedDate.map { Date().timeIntervalSince($0) > 8 * 3600 } ?? true }
@@ -51,26 +50,6 @@ struct CloudMonitoring: Decodable {
     let message: String
     let region: String
     let functionName: String
-}
-
-struct TeamSpending: Decodable {
-    let currency: String
-    let total: String
-    let basis: String
-    let dimensions: [TeamDimension]
-}
-struct TeamDimension: Decodable, Identifiable {
-    let id: String
-    let tagKey: String
-    let state: String
-    let message: String?
-    let groups: [TeamCostGroup]
-}
-struct TeamCostGroup: Decodable, Identifiable {
-    let id: String
-    let name: String
-    let unassigned: Bool
-    let amount: String
 }
 
 struct SavingsStatus: Decodable {

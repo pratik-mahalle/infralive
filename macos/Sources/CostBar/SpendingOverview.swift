@@ -3,7 +3,6 @@ import SwiftUI
 
 struct SpendingOverview: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var grouping = "service"
     let snapshot: Snapshot
     let totals: [DailyTotal]
 
@@ -14,21 +13,12 @@ struct SpendingOverview: View {
             if !snapshot.analysis.anomalies.isEmpty || !(snapshot.idleAlerts?.isEmpty ?? true) {
                 alerts
             }
-            Picker("Group costs by", selection: $grouping) {
-                Text("Service").tag("service")
-                Text("Project").tag("project")
-                Text("Owner").tag("owner")
-            }.pickerStyle(.segmented).labelsHidden()
-            if grouping == "service" {
-              VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 6) {
                 PanelHeading(title: "By service", detail: "Month to date")
                 ForEach(snapshot.analysis.topServices.prefix(6)) { service in
                     ServiceSpendRow(service: service, currencyCode: snapshot.analysis.currency,
                                     maximum: snapshot.analysis.topServices.map(\.value).max() ?? 1)
                 }
-              }
-            } else {
-                TeamSpendingSection(spending: snapshot.teamSpending, dimension: grouping)
             }
             DisclosureGroup("Billing details") {
                 VStack(alignment: .leading, spacing: 7) {
@@ -39,10 +29,7 @@ struct SpendingOverview: View {
                 }.font(.caption).foregroundStyle(.secondary).padding(.top, 6).textSelection(.enabled)
             }.font(.caption).foregroundStyle(.secondary)
         }
-        .onAppear {
-            if CommandLine.arguments.contains("--project") { grouping = "project" }
-            if CommandLine.arguments.contains("--owner") { grouping = "owner" }
-        }
+
     }
 
     private var summary: some View {

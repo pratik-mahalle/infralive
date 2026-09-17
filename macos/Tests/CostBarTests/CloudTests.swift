@@ -16,17 +16,13 @@ struct CloudTests {
         #expect(model.error == nil)
     }
 
-    @Test func missingTagAttributionRemainsExplicit() throws {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let data = Data("""
-        {"currency":"USD","total":"121.21","basis":"Before credits and refunds","dimensions":[
-          {"id":"project","tag_key":"Project","state":"not_active","message":"Activate the billing tag",
-           "groups":[{"id":"","name":"Unassigned","unassigned":true,"amount":"121.21"}]}]}
-        """.utf8)
-        let spending = try decoder.decode(TeamSpending.self, from: data)
-        #expect(spending.dimensions.first?.state == "not_active")
-        #expect(spending.dimensions.first?.groups.first?.amount == spending.total)
-        #expect(spending.dimensions.first?.groups.first?.unassigned == true)
+    @Test func legacyTeamSpendingDoesNotPreventLoadingServiceCosts() throws {
+        let url = try #require(Bundle.module.url(forResource: "demo-status", withExtension: "json", subdirectory: "Fixtures"))
+        var json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        var snapshot = try #require(json["snapshot"] as? [String: Any])
+        snapshot["team_spending"] = ["legacy": "ignored"]
+        json["snapshot"] = snapshot
+        let status = try AgentStatus.decode(JSONSerialization.data(withJSONObject: json))
+        #expect(status.snapshot?.analysis.topServices.isEmpty == false)
     }
 }

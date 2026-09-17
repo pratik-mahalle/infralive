@@ -20,7 +20,7 @@
 
 <p align="center">
   <img src="docs/assets/overview.png" width="400" alt="Cloudwake light appearance showing demo spending, forecast, daily costs, and service breakdown">
-  <img src="docs/assets/teams-dark.png" width="400" alt="Cloudwake dark appearance showing demo spending grouped by project, including Unassigned">
+  <img src="docs/assets/overview-dark.png" width="400" alt="Cloudwake dark appearance showing demo spending by AWS service">
 </p>
 <p align="center"><sub>Native SwiftUI. Light and dark appearances. Screenshots use synthetic demo data.</sub></p>
 
@@ -34,7 +34,6 @@ control; Cloudwake does not stop, resize, or delete monitored resources.
 | --- | --- |
 | **Accounts** | Monitor multiple accounts at once. Switch views without stopping other accounts; keep each bill and inbox separate. |
 | **Overview** | Month-to-date charges, credits and net balance, a monthly forecast, daily spending, and cost increase alerts. |
-| **Team spending** | The same bill grouped by `Project` or `Owner`, with an explicit **Unassigned** category. |
 | **Changes** | Resource creation, update, and deletion activity from CloudTrail, with the AWS identity behind each event. |
 | **Savings** | AWS recommendations with estimated savings, investigation priorities, and repeated unused-resource observations. |
 | **Inbox** | Persistent alerts you can review, reopen, and snooze. Optional native Mac notification banners. |
@@ -135,14 +134,6 @@ aws-cost-agent --config config.toml run
 See the [connection and IAM reference](docs/reference.md#connect-an-aws-account) for permissions,
 cross-account roles, and optional event queues. Billing covers the connected account across
 regions; resource activity covers the configured history regions.
-
-### Assign spending to teams
-
-Apply the case-sensitive tags `Project` and `Owner` to resources and activate them as cost-allocation
-tags in AWS Billing. Cloudwake then offers both breakdowns in Overview. Missing tag values appear
-as **Unassigned**. If a tag is inactive or unavailable, the full known bill stays visible as
-Unassigned with a warning. Attribution depends on AWS billing ingestion and may not cover prior
-charges. The keys are configurable in `[team]`.
 
 ### Keep monitoring while your Mac sleeps
 

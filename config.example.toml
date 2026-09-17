@@ -48,11 +48,6 @@ recipients = []
 # Bedrock and SES use the operator's credentials, not the customer observer role.
 bedrock_model_id = ""
 
-[team]
-# Case-sensitive AWS cost-allocation tag keys; activate them in AWS Billing.
-project_tag = "Project"
-owner_tag = "Owner"
-
 # Added by the cloud deployment after a verified handoff. Local workers are then disabled.
 # [cloud]
 # state_bucket = "cloudpulse-123456789012-us-east-1-state"

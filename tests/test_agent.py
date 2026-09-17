@@ -73,3 +73,13 @@ def test_agent_stops_unbounded_tool_loop(store, provider, config):
     with pytest.raises(ValueError, match="six-round limit"):
         ask("Investigate", store, config, live)
     assert live.client.return_value.converse.call_count == 6
+
+
+def test_sync_keeps_service_costs_without_requesting_tag_breakdowns(store, provider, config):
+    provider.allocation_tags = Mock(side_effect=AssertionError("No billing tag requests"))
+    provider.team_costs = Mock(side_effect=AssertionError("No tag cost requests"))
+    snapshot = sync(store, provider, config, date(2026, 9, 16))
+    assert snapshot["analysis"]["top_services"]
+    assert "team_spending" not in snapshot
+    provider.allocation_tags.assert_not_called()
+    provider.team_costs.assert_not_called()

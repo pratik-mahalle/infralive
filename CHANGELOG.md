@@ -2,6 +2,8 @@
 
 ## 1.1.1 — 2026-09-17
 
+- Simplify Overview to AWS service costs; remove Project and Owner views and their extra billing-tag API requests.
+
 - Open AWS connection setup directly on a fresh install instead of loading demo spending.
 - Show the connection form directly in the menu until an account is connected.
 - Replace the setup placeholder with the verified account and return to setup after removing the last account.
