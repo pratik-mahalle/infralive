@@ -7,19 +7,25 @@ struct MenuPanel: View {
     static let width: CGFloat = 420
     static var height: CGFloat { min(640, (NSScreen.main?.visibleFrame.height ?? 800) - 60) }
     @ObservedObject var model: AgentModel
+    var workspace: AccountWorkspace? = nil
     @Environment(\.openWindow) private var openWindow
     @State private var tab: PanelTab = .overview
     @State private var confirmSavings = false
     @State private var includeRoutine = false
 
-    init(model: AgentModel, initialTab: PanelTab = .overview) {
+    init(model: AgentModel, initialTab: PanelTab = .overview, workspace: AccountWorkspace? = nil) {
         self.model = model
+        self.workspace = workspace
         _tab = State(initialValue: initialTab)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             header
+            if let workspace {
+                AccountPicker(workspace: workspace).font(.caption)
+                    .padding(.horizontal, 18).padding(.bottom, 12)
+            }
             if model.needsSignIn { reconnectBanner }
             if model.status != nil {
                 Picker("View", selection: $tab) {

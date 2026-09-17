@@ -5,9 +5,11 @@ struct SettingsPanel: View {
     @ObservedObject var model: AgentModel
     @State private var draft: AgentSettings
     private let previewReview: ConnectionReview?
+    private let workspace: AccountWorkspace?
 
-    init(model: AgentModel, previewReview: ConnectionReview? = nil) {
+    init(model: AgentModel, previewReview: ConnectionReview? = nil, workspace: AccountWorkspace? = nil) {
         self.model = model
+        self.workspace = workspace
         self.previewReview = previewReview
         _draft = State(initialValue: model.settings)
     }
@@ -22,7 +24,11 @@ struct SettingsPanel: View {
                         Text("AWS connection and notifications.").foregroundStyle(.secondary)
                     }
                 }
-                ConnectionPanel(model: model, previewReview: previewReview)
+                if let workspace {
+                    AccountSettings(workspace: workspace)
+                    Divider()
+                }
+                ConnectionPanel(model: model, previewReview: previewReview, workspace: workspace)
                 Divider()
                 NotificationSettings(model: model, notifier: model.notifier)
                 Divider()

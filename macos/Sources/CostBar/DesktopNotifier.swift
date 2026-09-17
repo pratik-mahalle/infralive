@@ -103,7 +103,7 @@ final class DesktopNotifier: NSObject, ObservableObject, UNUserNotificationCente
         return defaults.integer(forKey: key)
     }
 
-    func publish(_ page: AlertPage, status: AgentStatus) async throws {
+    func publish(_ page: AlertPage, status: AgentStatus, accountLabel: String? = nil) async throws {
         guard enabled, !page.alerts.isEmpty else { return }
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
@@ -114,6 +114,7 @@ final class DesktopNotifier: NSObject, ObservableObject, UNUserNotificationCente
         for message in NotificationPlan.messages(page.alerts, demo: status.demo) {
             let content = UNMutableNotificationContent()
             content.title = message.title
+            content.subtitle = accountLabel ?? status.snapshot.map { "AWS account " + $0.accountId } ?? ""
             content.body = message.body
             content.sound = .default
             content.threadIdentifier = namespace

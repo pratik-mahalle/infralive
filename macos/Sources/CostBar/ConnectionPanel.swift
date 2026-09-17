@@ -52,9 +52,12 @@ struct ConnectionPanel: View {
     @State private var credentialNotice: String?
     private let bridge = AgentBridge()
     private let preview: Bool
+    private let workspace: AccountWorkspace?
+    @State private var accountName = ""
 
-    init(model: AgentModel, previewReview: ConnectionReview? = nil) {
+    init(model: AgentModel, previewReview: ConnectionReview? = nil, workspace: AccountWorkspace? = nil) {
         self.model = model
+        self.workspace = workspace
         preview = model.isPreview || previewReview != nil
         _useCredentials = State(initialValue: model.isPreview && CommandLine.arguments.contains("--credentials"))
         if let value = previewReview {
@@ -67,13 +70,16 @@ struct ConnectionPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label("Connect your AWS account", systemImage: "link.circle.fill")
+            Label(workspace == nil ? "Connect your AWS account" : "Add or reconnect an account", systemImage: "link.circle.fill")
                 .font(.headline)
             Text("Use an AWS profile on this Mac, or paste access credentials. SSO is optional.")
                 .font(.callout).foregroundStyle(.secondary)
             if !model.settings.demo {
                 Label("AWS connection saved" + (model.status?.snapshot.map { " · " + $0.accountId } ?? ""), systemImage: "checkmark.circle")
                     .font(.caption).foregroundStyle(.teal)
+            }
+            if workspace != nil {
+                TextField("Account name (optional)", text: $accountName).textFieldStyle(.roundedBorder)
             }
             Picker("Connection method", selection: $useCredentials) {
                 Text("AWS profile").tag(false)
@@ -130,7 +136,7 @@ struct ConnectionPanel: View {
                 }
                 HStack {
                     if connected {
-                        Label("Connected. Press Start in the menu to begin monitoring.", systemImage: "checkmark.circle.fill")
+                        Label(workspace == nil ? "Connected. Press Start in the menu to begin monitoring." : "Connected. View monitoring status under Your accounts.", systemImage: "checkmark.circle.fill")
                             .font(.caption).foregroundStyle(.teal)
                     } else {
                         Button("Connect this account") { Task { await connect() } }
@@ -165,13 +171,13 @@ struct ConnectionPanel: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .disabled(working || model.busy || model.asking || model.ownsWorker)
+        .disabled(working || model.busy || model.asking || (workspace == nil && model.ownsWorker))
         .task { if !preview { await loadProfiles() } }
         .onChange(of: profile) { _ in resetReview() }
         .onChange(of: region) { _ in resetReview() }
         .onChange(of: useCredentials) { _ in resetReview(); credentialNotice = nil; credentialDraft = CredentialDraft(); profile = "" }
         .onChange(of: credentialDraft) { _ in resetReview() }
-        .onDisappear { credentialDraft = CredentialDraft() }
+        .onDisappear { credentialDraft = CredentialDraft(); model.configuring = false }
         .onChange(of: working) { model.configuring = $0 }
         .alert("Set up resource notifications?", isPresented: $confirmInstall) {
             Button("Cancel", role: .cancel) { }
@@ -232,15 +238,21 @@ struct ConnectionPanel: View {
     private func connect() async {
         guard let review, !working else { return }
         working = true; progress = "Saving your connection…"; error = nil
-        defer { working = false }
+        defer { working = false; model.configuring = false }
         do {
             let saved = try decode(ConnectionSaved.self, data: await bridge.execute(settings: model.settings,
                 command: arguments("connect") + ["--account", review.accountId]))
             var settings = model.settings
             settings.configPath = saved.configPath; settings.demo = false
             settings.connectionMethod = profile.hasPrefix("cloudwake-keychain-") ? "credentials" : (ssoProfiles.contains(profile) ? "sso" : "profile")
-            await model.save(settings)
-            connected = model.settings == settings && model.error == nil
+            if let workspace {
+                model.configuring = false
+                _ = try await workspace.connect(settings: settings, accountID: review.accountId, name: accountName)
+                connected = true
+            } else {
+                await model.save(settings)
+                connected = model.settings == settings && model.error == nil
+            }
             if !connected { error = model.error ?? "Could not save the connection. Try again." }
             else if let warning = saved.warning { error = "Connected for costs. Resource alerts: " + warning }
         } catch { self.error = error.localizedDescription }

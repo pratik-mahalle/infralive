@@ -12,6 +12,7 @@ final class AgentModel: ObservableObject {
     @Published var error: String?
     @Published var notice: String?
     @Published private(set) var ownsWorker = false
+    @Published private(set) var monitoringRequested = false
     @Published private(set) var answer = ""
     @Published private(set) var asking = false
     @Published private(set) var inboxPage: InboxPage?
@@ -21,19 +22,26 @@ final class AgentModel: ObservableObject {
     let isPreview: Bool
 
     private let bridge: any AgentExecuting
-    let notifier = DesktopNotifier()
+    let notifier: DesktopNotifier
+    var accountLabel: String?
     private var worker: Process?
     private var workerLog: FileHandle?
     private var timer: Task<Void, Never>?
     private var terminationSubscription: AnyCancellable?
-    private let preferenceKey = "CostBar.settings.v1"
+    private let preferenceKey: String?
 
-    init(start: Bool = true, fixture: AgentStatus? = nil, inboxFixture: InboxPage? = nil, bridge: any AgentExecuting = AgentBridge()) {
+    init(start: Bool = true, fixture: AgentStatus? = nil, inboxFixture: InboxPage? = nil, bridge: any AgentExecuting = AgentBridge(),
+         initialSettings: AgentSettings? = nil, monitoringRequested: Bool = false, notifier: DesktopNotifier? = nil) {
         self.bridge = bridge
+        self.notifier = notifier ?? DesktopNotifier()
+        preferenceKey = initialSettings == nil ? "CostBar.settings.v1" : nil
+        self.monitoringRequested = monitoringRequested
         isPreview = !start
         inboxPage = inboxFixture
         if let inboxFixture { inboxFilter = inboxFixture.filter }
-        if let data = UserDefaults.standard.data(forKey: preferenceKey),
+        if let initialSettings {
+            settings = initialSettings.relocatedToCurrentBundle()
+        } else if let data = UserDefaults.standard.data(forKey: "CostBar.settings.v1"),
            let saved = try? JSONDecoder().decode(AgentSettings.self, from: data) {
             settings = saved
             // Homebrew upgrades and moving the app must not retain old bundle paths.
@@ -51,13 +59,14 @@ final class AgentModel: ObservableObject {
             timer = Task { [weak self] in
                 await self?.notifier.checkPermission()
                 await self?.load(initial: true)
-                if CommandLine.arguments.contains("--resume-monitoring") {
+                if self?.monitoringRequested == true || CommandLine.arguments.contains("--resume-monitoring") {
                     await self?.startWorker()
                 }
                 while !Task.isCancelled {
                     try? await Task.sleep(nanoseconds: 30_000_000_000)
                     guard !Task.isCancelled else { return }
                     await self?.load()
+                    if self?.monitoringRequested == true { await self?.startWorker() }
                 }
             }
         }
@@ -106,7 +115,10 @@ final class AgentModel: ObservableObject {
         guard !busy && !configuring && !settings.demo else { return }
         busy = true
         notice = signIn ? "Complete AWS sign-in in your browser…" : "Checking your AWS connection…"
-        defer { busy = false }
+        defer {
+            busy = false
+            if monitoringRequested && !needsSignIn { Task { await startWorker() } }
+        }
         do {
             if signIn { _ = try await bridge.execute(settings: settings, command: ["login"], timeout: 200) }
             var latest = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"], timeout: 30))
@@ -180,7 +192,7 @@ final class AgentModel: ObservableObject {
         }
         do {
             _ = try updated.makeProcess(["status"])
-            UserDefaults.standard.set(try JSONEncoder().encode(updated), forKey: preferenceKey)
+            if let preferenceKey { UserDefaults.standard.set(try JSONEncoder().encode(updated), forKey: preferenceKey) }
             settings = updated
             needsSignIn = false
             status = nil
@@ -201,7 +213,7 @@ final class AgentModel: ObservableObject {
             // One page per poll bounds notification work; subsequent polls drain bursts.
             let data = try await bridge.execute(settings: settings, command: ["alerts", "--after", String(after)], timeout: 15)
             let page = try AlertPage.decode(data)
-            try await notifier.publish(page, status: status)
+            try await notifier.publish(page, status: status, accountLabel: accountLabel)
         } catch {
             if (error as? BridgeError)?.requiresSignIn == true { recordFailure(error) }
             else { notice = "Mac notification delivery needs attention: " + error.localizedDescription }
@@ -261,13 +273,14 @@ final class AgentModel: ObservableObject {
     }
 
     func startWorker() async {
-        guard !busy && !configuring && !needsSignIn && !isMonitoring && !usesCloudMonitoring else { return }
+        guard status != nil && !busy && !configuring && !needsSignIn && !isMonitoring && !usesCloudMonitoring else { return }
         error = nil
         do {
             let process = try settings.makeProcess(["run"])
             let directory = URL(fileURLWithPath: settings.workingDirectory).appendingPathComponent("data")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let log = directory.appendingPathComponent(settings.demo ? "menubar-demo.log" : "menubar-worker.log")
+            let scope = NotificationPlan.key(database: settings.configPath, demo: settings.demo, account: "worker")
+            let log = directory.appendingPathComponent("menubar-\(scope.prefix(16)).log")
             FileManager.default.createFile(atPath: log.path, contents: nil)
             let handle = try FileHandle(forWritingTo: log)
             process.standardOutput = handle
@@ -290,12 +303,14 @@ final class AgentModel: ObservableObject {
             worker = process
             workerLog = handle
             ownsWorker = true
+            monitoringRequested = true
             notice = settings.demo ? "Demo worker started. Emails stay local." : "Monitoring started using your configured email delivery."
             await load()
         } catch { recordFailure(error) }
     }
 
     func stopWorker() {
+        monitoringRequested = false
         guard let worker, worker.isRunning else { return }
         worker.terminate()
         notice = "Stopping the worker…"
@@ -303,7 +318,12 @@ final class AgentModel: ObservableObject {
 
     func shutdown() {
         timer?.cancel()
+        worker?.terminationHandler = nil
         if let worker, worker.isRunning { worker.terminate() }
+        worker = nil
+        ownsWorker = false
+        try? workerLog?.close()
+        workerLog = nil
     }
 
     func ask(_ question: String) async {
@@ -325,7 +345,8 @@ final class AgentModel: ObservableObject {
             let data = try await bridge.execute(settings: settings, command: ["report"])
             let directory = URL(fileURLWithPath: settings.workingDirectory).appendingPathComponent("data")
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let file = directory.appendingPathComponent(settings.demo ? "demo-report.txt" : "aws-report.txt")
+            let scope = NotificationPlan.key(database: settings.configPath, demo: settings.demo, account: "report")
+            let file = directory.appendingPathComponent(settings.demo ? "demo-report.txt" : "aws-report-\(scope.prefix(16)).txt")
             try data.write(to: file, options: .atomic)
             NSWorkspace.shared.open(file)
         } catch { recordFailure(error) }

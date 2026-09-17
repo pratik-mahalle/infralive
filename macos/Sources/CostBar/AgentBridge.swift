@@ -35,6 +35,16 @@ struct AgentSettings: Codable, Equatable {
 
     var workingDirectory: String { dataPath ?? projectPath }
 
+    func relocatedToCurrentBundle() -> AgentSettings {
+        var result = self
+        if dataPath != nil && projectPath.hasSuffix(".app/Contents/Resources/Agent"),
+           Self.initial.dataPath != nil {
+            result.projectPath = Self.initial.projectPath
+            result.pythonPath = Self.initial.pythonPath
+        }
+        return result
+    }
+
     static func bundled(resources: URL, support: URL) -> AgentSettings {
         AgentSettings(projectPath: resources.appendingPathComponent("Agent").path,
                       pythonPath: resources.appendingPathComponent("Python/bin/python3.12").path,

@@ -3,6 +3,7 @@
 import json
 from datetime import UTC, datetime, timedelta
 
+from .auth import requires_sign_in
 from .events import ROUTINE_ACTIONS, clean, normalize_event, render_event
 from .locking import worker_lock
 from .store import now_iso
@@ -108,6 +109,8 @@ def _collect_history(store, provider, config, now=None):
                 {"region": region, "added": count, "backfill_pending": bool(token), "checked_at": now_iso()}
             )
         except Exception as error:
+            if requires_sign_in(error):
+                raise
             code = getattr(error, "response", {}).get("Error", {}).get("Code", type(error).__name__)
             # Invalid pagination tokens restart the same window on the next poll; IDs deduplicate.
             if code == "InvalidNextTokenException":

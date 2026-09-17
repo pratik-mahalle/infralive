@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-09-17
+
+- Connect multiple AWS accounts and switch between their spending, activity, savings, and inboxes.
+- Monitor accounts concurrently; switching views leaves other account workers running.
+- Name, pause, resume, and remove connections independently in Settings.
+- Restore account selection and each local monitor's enabled state on app relaunch.
+- Include account names and IDs in Mac notification banners, with separate notification cursors.
+- Migrate the existing single-account connection without moving its data or credentials.
+- Surface expired background credentials for the affected account instead of silently retrying them.
+
 ## 1.0.1 — 2026-09-17
 
 - Release Cloudwake under the MIT License.

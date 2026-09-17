@@ -27,6 +27,25 @@ The compact menu uses native controls and follows the Mac's light or dark appear
 activity and savings rows for full resource IDs, AWS identities and supporting evidence.
 Billing methodology and collection notes are under **Overview → Billing details**.
 
+## Multiple AWS accounts
+
+In Settings, use **Add or reconnect an account** for each AWS account. Give it a name such as
+Production or Staging, then check and connect it using its own AWS profile or pasted credentials.
+The account picker in the menu and Settings switches the displayed spending, changes, savings,
+and inbox. Other accounts keep monitoring, and Mac notification banners identify their account.
+There is one saved connection per AWS account; reconnecting selects or updates that connection.
+Reconnecting restarts only that account’s local worker so updated credentials take effect.
+
+**Your accounts** shows each connection's monitoring or sign-in state and offers per-account
+Start, Pause, Rename, and Remove controls. Removing an account stops its local worker but keeps
+its data, credentials, and any deployed AWS monitor. Existing v1 connections migrate automatically.
+Selection and local monitoring preferences survive app relaunch. The menu bar amount belongs
+to the selected account; it is not a combined organization bill.
+
+Local monitors require the app to be open and the Mac awake. Configure the optional always-on
+collector separately for each account to collect while the Mac is asleep. An expired session in
+one account keeps its last snapshot visible and does not stop the other accounts.
+
 ## Alert inbox
 
 Open **Inbox** to see resource, spending, budget and unused-resource alerts saved for the connected account.
@@ -55,7 +74,7 @@ if you move the project or app, update Settings. No AWS credentials are embedded
 ## Connect AWS
 
 Open the gear icon → choose an **AWS profile** and **Resource region** → **Check account** →
-confirm the detected account → **Connect this account**. Then press **Start monitoring** in the menu.
+confirm the detected account → **Connect this account**. New accounts start local monitoring automatically.
 There is no need to type an account ID, edit TOML or copy queue URLs. The app saves each
 account/profile/region connection separately under `data/connections/`; its database and email
 previews are isolated. Existing settings in a generated connection are preserved on reconnect.

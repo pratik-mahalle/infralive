@@ -2,7 +2,7 @@
   <img src="docs/assets/cloudwake.svg" width="112" height="112" alt="Cloudwake logo">
 </p>
 <h1 align="center">Cloudwake</h1>
-<p align="center"><strong>Version 1.0.1 · MIT licensed</strong></p>
+<p align="center"><strong>Version 1.1.0 · MIT licensed</strong></p>
 <p align="center"><strong>Know what your AWS is costing. Catch what it leaves running.</strong></p>
 <p align="center">A native Mac menu bar app for AWS spending, resource activity, and savings—with optional monitoring that stays awake in AWS.</p>
 <p align="center">
@@ -32,6 +32,7 @@ control; Cloudwake does not stop, resize, or delete monitored resources.
 
 | View | What you get |
 | --- | --- |
+| **Accounts** | Monitor multiple accounts at once. Switch views without stopping other accounts; keep each bill and inbox separate. |
 | **Overview** | Month-to-date charges, credits and net balance, a monthly forecast, daily spending, and cost increase alerts. |
 | **Team spending** | The same bill grouped by `Project` or `Owner`, with an explicit **Unassigned** category. |
 | **Changes** | Resource creation, update, and deletion activity from CloudTrail, with the AWS identity behind each event. |
@@ -39,7 +40,7 @@ control; Cloudwake does not stop, resize, or delete monitored resources.
 | **Inbox** | Persistent alerts you can review, reopen, and snooze. Optional native Mac notification banners. |
 | **Always-on monitoring** | A private collector in your AWS account that keeps checking while your Mac sleeps or the app is closed. |
 
-**v1 scope:** one AWS account per connection, AWS only. The Python collector can run locally or in
+**v1.1 scope:** multiple AWS accounts with independent connections and an account switcher, AWS only. The Python collector can run locally or in
 AWS; the desktop app requires macOS. GCP, Azure, organization-wide reporting, and weekly email
 are not implemented. The optional local SES integration supports daily reports and alerts;
 the always-on deployment keeps email disabled.
@@ -101,7 +102,11 @@ The Python package and CLI retain the name `aws-cost-agent` for compatibility.
    secret access key directly. Temporary credentials require the session token too.
    Choose the resource region. AWS CLI and SSO are not required for this option.
 3. Select **Check account**, then **Connect this account**.
-4. Enable Mac notifications if you want banners. Use **Savings → Enable AWS savings…** to
+4. Repeat **Add or reconnect an account** for each AWS account. Give connections names such as
+   Production and Staging. New accounts start local monitoring automatically. The account picker
+   switches views while other accounts keep monitoring; **Your accounts** has individual pause,
+   rename and remove controls. Existing connections migrate automatically on upgrade.
+5. Enable Mac notifications if you want banners. Use **Savings → Enable AWS savings…** to
    enroll the account in standard AWS recommendation analysis when needed.
 
 The connection check verifies the account and available access. Existing profiles use the AWS

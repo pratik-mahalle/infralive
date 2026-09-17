@@ -1,6 +1,6 @@
 # Install Cloudwake
 
-Cloudwake v1.0.1 provides a standalone **Apple silicon** app for **macOS 13+**.
+Cloudwake v1.1.0 provides a standalone **Apple silicon** app for **macOS 13+**.
 Python and the AWS SDK are bundled. You do not need a source checkout, separate Python install,
 or Xcode to use the downloaded app. Intel Macs currently require a source build.
 
@@ -13,8 +13,8 @@ brew install --cask pratik-mahalle/tap/cloudwake
 
 ## Direct download
 
-Download `Cloudwake-1.0.1-macos-arm64.zip` from the
-[v1.0.1 release](https://github.com/pratik-mahalle/infralive/releases/tag/v1.0.1), unzip it,
+Download `Cloudwake-1.1.0-macos-arm64.zip` from the
+[v1.1.0 release](https://github.com/pratik-mahalle/infralive/releases/tag/v1.1.0), unzip it,
 and move Cloudwake.app to Applications. Open it and look for the cloud in your menu bar.
 
 This build is ad-hoc signed and **not Apple-notarized**. macOS may require approval in
@@ -33,6 +33,25 @@ Transparency is enabled in macOS Accessibility settings.
 The standalone app saves configuration, logs, and state in
 `~/Library/Application Support/Cloudwake/`. Its bundled code remains read-only. Moving the app
 or upgrading through Homebrew preserves account configuration and monitoring history.
+
+## Multiple accounts
+
+In Settings, use **Add or reconnect an account** for each AWS account and optionally name it.
+New local connections start monitoring automatically. Use the account picker to switch costs,
+activity, savings and inboxes; other accounts continue monitoring. **Your accounts** lets you
+pause, resume, rename or remove individual connections. The menu bar amount is for the selected
+account. Existing connections migrate automatically when upgrading from v1.0.x.
+
+To update an existing Homebrew installation, quit Cloudwake, then run:
+
+```sh
+brew update
+brew upgrade --cask pratik-mahalle/tap/cloudwake
+```
+
+Local monitoring needs an awake Mac with the app open. Always-on monitoring is configured
+separately in each AWS account. Removing a connection does not delete credentials, local history,
+or its AWS deployment.
 
 ## Expired AWS sign-in
 

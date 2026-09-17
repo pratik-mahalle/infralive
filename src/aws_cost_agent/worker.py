@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from .analysis import analyze, money, render_report
+from .auth import requires_sign_in
 from .aws import utc_today
 from .events import ROUTINE_ACTIONS, normalize_event, render_event
 from .history import collect_history
@@ -143,6 +144,8 @@ def poll(store, provider, config):
         try:
             messages = provider.receive(region, queue)
         except Exception as error:
+            if requires_sign_in(error):
+                raise
             logger.error("Queue polling failed in %s (%s)", region, type(error).__name__)
             continue
         for message in messages:
@@ -152,6 +155,8 @@ def poll(store, provider, config):
                 # Persist event and email intent before acknowledging SQS delivery.
                 provider.acknowledge(region, queue, message["ReceiptHandle"])
             except Exception as error:
+                if requires_sign_in(error):
+                    raise
                 logger.warning(
                     "Message processing failed (%s); left for retry / dead-letter queue", type(error).__name__
                 )
@@ -168,6 +173,8 @@ def run(store, provider, config, once=False):
                 next_sync = time.monotonic() + config.sync_hours * 3600
                 logger.info("Cost snapshot updated")
             except Exception as error:
+                if requires_sign_in(error):
+                    raise
                 logger.error("Cost sync failed (%s); previous snapshot retained", type(error).__name__)
                 next_sync = time.monotonic() + 300
                 if once:
@@ -187,6 +194,8 @@ def run(store, provider, config, once=False):
                 try:
                     collect_history(store, provider, config)
                 except Exception as error:
+                    if requires_sign_in(error):
+                        raise
                     logger.warning("Activity history unavailable (%s)", type(error).__name__)
                 next_history = time.monotonic() + 300
             poll(store, provider, config)

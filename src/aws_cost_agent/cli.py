@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .agent import ask
 from .analysis import render_report
+from .auth import requires_sign_in
 from .aws import AWS
 from .config import load_config
 from .demo import Demo
@@ -183,17 +184,7 @@ def main(argv=None):
         return 1
     except Exception as error:
         code = getattr(error, "response", {}).get("Error", {}).get("Code", type(error).__name__)
-        if code in {
-            "TokenRetrievalError",
-            "SSOTokenLoadError",
-            "UnauthorizedSSOTokenError",
-            "ExpiredToken",
-            "ExpiredTokenException",
-            "InvalidGrantException",
-            "InvalidClientTokenId",
-            "UnrecognizedClientException",
-            "InvalidAccessKeyId",
-        }:
+        if requires_sign_in(error):
             print(
                 "AWS sign-in required: Your session expired or credentials were rejected. Reconnect in Settings.",
                 file=sys.stderr,

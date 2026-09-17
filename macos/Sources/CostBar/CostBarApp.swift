@@ -81,17 +81,18 @@ enum CostBarLauncher {
 }
 
 struct CostBarApp: App {
-    @StateObject private var model = AgentModel()
+    @StateObject private var workspace = AccountWorkspace()
 
     var body: some Scene {
         MenuBarExtra {
-            MenuPanel(model: model)
+            MenuPanel(model: workspace.selectedModel, workspace: workspace)
+                .id(workspace.selectedID)
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in
-                    model.shutdown()
+                    workspace.shutdown()
                 }
         } label: {
             Label {
-                Text(model.menuLabel)
+                Text(workspace.selectedModel.menuLabel)
             } icon: {
                 Image(nsImage: CloudwakeArtwork.menuImage)
             }
@@ -99,12 +100,12 @@ struct CostBarApp: App {
         .menuBarExtraStyle(.window)
 
         Window("Cloudwake Settings", id: "settings") {
-            SettingsPanel(model: model)
+            SettingsPanel(model: workspace.selectedModel, workspace: workspace).id(workspace.selectedID)
         }
         .windowResizability(.contentSize)
 
         Window("Ask Cost Agent", id: "ask") {
-            AskPanel(model: model)
+            AskPanel(model: workspace.selectedModel).id(workspace.selectedID)
         }
         .defaultSize(width: 640, height: 480)
     }
