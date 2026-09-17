@@ -22,7 +22,7 @@ or pasted credentials. Once connected, click the cloud to see:
 - A 14-day spending chart, largest services and cost alerts.
 - Recorded resource creations with the actual AWS principal and available ownership.
 - Savings recommendations with estimates and restart implications.
-- A report button, with “Ask about spending…” and email previews in the ellipsis menu.
+- Spending reports and “Ask about spending…” in the footer’s ellipsis menu.
 
 The compact menu uses native controls and follows the Mac's light or dark appearance. Expand
 activity and savings rows for full resource IDs, AWS identities and supporting evidence.
