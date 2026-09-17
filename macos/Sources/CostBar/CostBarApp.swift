@@ -42,6 +42,7 @@ enum CostBarLauncher {
             inbox = try InboxPage.decode(Data(contentsOf: URL(fileURLWithPath: args[flag + 1])))
         }
         let model = AgentModel(start: false, fixture: fixture, inboxFixture: inbox)
+        if args.contains("--session-expired") { model.recordFailure(BridgeError.authenticationRequired) }
         let dark = args.contains("--dark")
         NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
         let tab: PanelTab = args.contains("--inbox") ? .inbox : (args.contains("--changes") ? .changes : (args.contains("--savings") ? .savings : .overview))

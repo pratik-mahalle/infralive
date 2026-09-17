@@ -219,3 +219,43 @@ def test_reconnect_rejects_config_with_changed_profile(tmp_path):
 def test_non_ascii_profile_is_valid_toml(tmp_path):
     path = Path(setup.write_connection("engineering-☁️", "us-east-1", ACCOUNT, root=tmp_path))
     assert tomllib.loads(path.read_text())["aws"]["profile"] == "engineering-☁️"
+
+
+def test_connected_login_uses_saved_profile_without_cloud_access(monkeypatch, tmp_path, capsys):
+    config = tmp_path / "config.toml"
+    config.write_text(
+        '[aws]\nprofile = "team-sso"\naccount_id = "123456789012"\n'
+        '[cloud]\nstate_bucket = "example-state"\nfunction_name = "cloudpulse-monitor"\nregion = "us-east-1"\n'
+    )
+    login = Mock(return_value={"signed_in": True})
+    monkeypatch.setattr(setup, "login", login)
+    from aws_cost_agent import cloud_client
+
+    cloud = Mock(side_effect=AssertionError("Login must not read cloud state with expired credentials"))
+    monkeypatch.setattr(cloud_client, "execute", cloud)
+    before = config.read_bytes()
+    assert main(["--config", str(config), "login"]) == 0
+    login.assert_called_once_with("team-sso")
+    cloud.assert_not_called()
+    assert config.read_bytes() == before
+    assert json.loads(capsys.readouterr().out)["signed_in"]
+
+
+def test_demo_login_never_starts_aws_sign_in(monkeypatch, capsys):
+    login = Mock()
+    monkeypatch.setattr(setup, "login", login)
+    assert main(["--demo", "login"]) == 1
+    login.assert_not_called()
+    assert "unavailable in demo" in capsys.readouterr().err
+
+
+def test_expired_sso_returns_actionable_error(monkeypatch, capsys):
+    from botocore.exceptions import TokenRetrievalError
+
+    monkeypatch.setattr(
+        setup, "execute", Mock(side_effect=TokenRetrievalError(provider="sso", error_msg="expired"))
+    )
+    assert main(["setup", "profiles"]) == 1
+    error = capsys.readouterr().err
+    assert "AWS sign-in required:" in error
+    assert "Traceback" not in error

@@ -1,6 +1,6 @@
 # Install Cloudwake
 
-Cloudwake v0.3.1 provides a standalone **Apple silicon** app for **macOS 13+**.
+Cloudwake v0.3.2 provides a standalone **Apple silicon** app for **macOS 13+**.
 Python and the AWS SDK are bundled. You do not need a source checkout, separate Python install,
 or Xcode to use the downloaded app. Intel Macs currently require a source build.
 
@@ -13,8 +13,8 @@ brew install --cask pratik-mahalle/tap/cloudwake
 
 ## Direct download
 
-Download `Cloudwake-0.3.1-macos-arm64.zip` from the
-[v0.3.1 release](https://github.com/pratik-mahalle/infralive/releases/tag/v0.3.1), unzip it,
+Download `Cloudwake-0.3.2-macos-arm64.zip` from the
+[v0.3.2 release](https://github.com/pratik-mahalle/infralive/releases/tag/v0.3.2), unzip it,
 and move Cloudwake.app to Applications. Open it and look for the cloud in your menu bar.
 
 This early build is ad-hoc signed and **not Apple-notarized**. macOS may require approval in
@@ -27,6 +27,18 @@ it in Cloudwake Settings. AWS SSO sign-in uses your existing AWS CLI installatio
 The standalone app saves configuration, logs, and state in
 `~/Library/Application Support/Cloudwake/`. Its bundled code remains read-only. Moving the app
 or upgrading through Homebrew preserves account configuration and monitoring history.
+
+## Expired AWS sign-in
+
+AWS SSO sessions expire independently of whether your Mac is awake. Cloudwake shows
+**AWS sign-in required**, keeps the last collected data visible, and pauses automatic client
+polling until you reconnect. Choose **Sign in to AWS**, complete the browser sign-in, and
+Cloudwake reloads your account without changing its saved connection.
+
+The optional collector in AWS uses its own execution role; its monitoring does not depend
+on the Mac's SSO session. The app cannot confirm its current health until it reconnects.
+For non-SSO profiles, refresh credentials using your existing sign-in method, then click Refresh.
+The sign-in button requires AWS CLI v2. Cloudwake does not extend your organization's session duration.
 
 ## Build a release
 

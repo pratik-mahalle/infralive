@@ -33,6 +33,7 @@ def parser():
         if action in {"connect", "install-events"}:
             command.add_argument("--account", required=True)
     commands.add_parser("demo", help="Generate synthetic report, change alert and email previews")
+    commands.add_parser("login", help="Sign in again using the connected AWS SSO profile")
     commands.add_parser("sync", help="Fetch costs, forecasts and savings; queue threshold alerts")
     commands.add_parser(
         "history", help="Import/poll recent CloudTrail changes without deploying infrastructure"
@@ -88,6 +89,13 @@ def main(argv=None):
             print(json.dumps(execute(args)))
             return 0
         config = load_config(args.config, demo=args.demo or args.command == "demo")
+        if args.command == "login":
+            from .setup import login
+
+            if config.demo:
+                raise ValueError("Sign-in is unavailable in demo mode.")
+            print(json.dumps(login(config.profile)))
+            return 0
         if config.cloud_bucket:
             from .cloud_client import execute as cloud_execute
 
@@ -171,6 +179,16 @@ def main(argv=None):
         return 1
     except Exception as error:
         code = getattr(error, "response", {}).get("Error", {}).get("Code", type(error).__name__)
+        if code in {
+            "TokenRetrievalError",
+            "SSOTokenLoadError",
+            "UnauthorizedSSOTokenError",
+            "ExpiredToken",
+            "ExpiredTokenException",
+            "InvalidGrantException",
+        }:
+            print("AWS sign-in required: Your session expired. Sign in again to reconnect.", file=sys.stderr)
+            return 1
         print(
             f"AWS operation failed ({code}). Check credentials, enrollment, region and permissions.",
             file=sys.stderr,

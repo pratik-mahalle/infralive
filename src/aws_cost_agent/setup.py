@@ -258,33 +258,39 @@ def install_events(profile, region, account, session=None, root=Path(".")):
     return {"config_path": write_connection(profile, region, account, queue, root), "warning": None}
 
 
+def login(profile):
+    if not profile:
+        raise ValueError("No named AWS profile is configured. Reconnect your account in Settings.")
+    executable = shutil.which("aws") or next(
+        (p for p in ("/opt/homebrew/bin/aws", "/usr/local/bin/aws") if os.access(p, os.X_OK)), None
+    )
+    if not executable:
+        raise ValueError("Install AWS CLI v2 to sign in with SSO.")
+    try:
+        result = subprocess.run(
+            [executable, "sso", "login", "--profile", profile],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=180,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise ValueError("Sign-in timed out. Try again and complete the browser sign-in.") from error
+    if result.returncode:
+        raise ValueError(
+            "SSO sign-in failed. This button requires an IAM Identity Center profile. Refresh other credential types using your existing AWS sign-in method."
+        )
+    return {"signed_in": True}
+
+
 def execute(args):
     if args.setup_action == "profiles":
         return profiles()
     if args.setup_action == "check":
         return check(args.profile, args.region)
     if args.setup_action == "login":
-        executable = shutil.which("aws") or next(
-            (p for p in ("/opt/homebrew/bin/aws", "/usr/local/bin/aws") if os.access(p, os.X_OK)), None
-        )
-        if not executable:
-            raise ValueError("Install AWS CLI v2 to sign in with SSO.")
-        try:
-            result = subprocess.run(
-                [executable, "sso", "login", "--profile", args.profile],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=180,
-                check=False,
-            )
-        except subprocess.TimeoutExpired as error:
-            raise ValueError("Sign-in timed out. Try again and complete the browser sign-in.") from error
-        if result.returncode:
-            raise ValueError(
-                "SSO sign-in failed. This button requires an IAM Identity Center profile. Refresh other credential types using your existing AWS sign-in method."
-            )
-        return {"signed_in": True}
+        return login(args.profile)
     if args.setup_action == "connect":
         return connect(args.profile, args.region, args.account)
     return install_events(args.profile, args.region, args.account)

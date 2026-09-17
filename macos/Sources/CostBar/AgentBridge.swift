@@ -2,8 +2,25 @@ import Foundation
 
 enum BridgeError: LocalizedError {
     case message(String)
+    case authenticationRequired
+
+    var requiresSignIn: Bool {
+        if case .authenticationRequired = self { return true }
+        return false
+    }
     var errorDescription: String? {
-        switch self { case .message(let message): return message }
+        switch self {
+        case .message(let message): return message
+        case .authenticationRequired: return "Your AWS session expired. Sign in again to reconnect."
+        }
+    }
+    static func processFailure(_ detail: String) -> BridgeError {
+        let markers = ["AWS sign-in required:", "TokenRetrievalError", "SSOTokenLoadError",
+                       "UnauthorizedSSOTokenError", "ExpiredToken", "InvalidGrantException"]
+        if markers.contains(where: { detail.contains($0) }) { return .authenticationRequired }
+        // SDK diagnostics can contain a full traceback. Show only the final actionable line.
+        let lastLine = detail.split(separator: "\n").last.map(String.init) ?? "The agent command failed."
+        return .message(String(lastLine.prefix(350)))
     }
 }
 
@@ -65,7 +82,17 @@ struct AgentSettings: Codable, Equatable {
 }
 
 /// Serial, off-main subprocess execution. Output uses temporary files to avoid pipe-buffer deadlocks.
-actor AgentBridge {
+protocol AgentExecuting: Sendable {
+    func execute(settings: AgentSettings, command: [String], timeout: TimeInterval) async throws -> Data
+}
+
+extension AgentExecuting {
+    func execute(settings: AgentSettings, command: [String]) async throws -> Data {
+        try await execute(settings: settings, command: command, timeout: 90)
+    }
+}
+
+actor AgentBridge: AgentExecuting {
     func execute(settings: AgentSettings, command: [String], timeout: TimeInterval = 90) throws -> Data {
         let process = try settings.makeProcess(command)
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -95,7 +122,7 @@ actor AgentBridge {
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             let detail = (try? String(contentsOf: errors, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw BridgeError.message(String((detail?.isEmpty == false ? detail! : "The agent command failed.").suffix(1800)))
+            throw BridgeError.processFailure(detail ?? "")
         }
         return try Data(contentsOf: output)
     }

@@ -7,6 +7,7 @@ final class AgentModel: ObservableObject {
     @Published private(set) var settings: AgentSettings
     @Published private(set) var status: AgentStatus?
     @Published private(set) var busy = false
+    @Published private(set) var needsSignIn = false
     @Published var configuring = false
     @Published var error: String?
     @Published var notice: String?
@@ -19,7 +20,7 @@ final class AgentModel: ObservableObject {
     @Published private(set) var inboxCursors: [Int] = [0]
     let isPreview: Bool
 
-    private let bridge = AgentBridge()
+    private let bridge: any AgentExecuting
     let notifier = DesktopNotifier()
     private var worker: Process?
     private var workerLog: FileHandle?
@@ -27,7 +28,8 @@ final class AgentModel: ObservableObject {
     private var terminationSubscription: AnyCancellable?
     private let preferenceKey = "CostBar.settings.v1"
 
-    init(start: Bool = true, fixture: AgentStatus? = nil, inboxFixture: InboxPage? = nil) {
+    init(start: Bool = true, fixture: AgentStatus? = nil, inboxFixture: InboxPage? = nil, bridge: any AgentExecuting = AgentBridge()) {
+        self.bridge = bridge
         isPreview = !start
         inboxPage = inboxFixture
         if let inboxFixture { inboxFilter = inboxFixture.filter }
@@ -68,10 +70,10 @@ final class AgentModel: ObservableObject {
     }
     var alertCount: Int { (status?.snapshot?.analysis.anomalies.count ?? 0) + (status?.snapshot?.idleAlerts?.count ?? 0) }
     var usesCloudMonitoring: Bool { status?.monitoring?.mode == "cloud" }
-    var isMonitoring: Bool { usesCloudMonitoring ? status?.monitoring?.healthy == true : ownsWorker || status?.worker.running == true }
+    var isMonitoring: Bool { !needsSignIn && (usesCloudMonitoring ? status?.monitoring?.healthy == true : ownsWorker || status?.worker.running == true) }
 
     func load(initial: Bool = false) async {
-        guard !busy else { return }
+        guard !busy && !needsSignIn else { return }
         busy = true
         defer { busy = false }
         do {
@@ -85,7 +87,39 @@ final class AgentModel: ObservableObject {
             error = nil
             if inboxPage != nil { await reloadInboxPage() }
             await checkDesktopAlerts()
-        } catch { self.error = error.localizedDescription }
+        } catch { recordFailure(error) }
+    }
+
+    func recordFailure(_ failure: Error) {
+        if (failure as? BridgeError)?.requiresSignIn == true {
+            needsSignIn = true
+            notice = nil
+        }
+        error = failure.localizedDescription
+    }
+
+    func reconnect() async {
+        guard !busy && !configuring && !settings.demo else { return }
+        busy = true
+        notice = "Complete AWS sign-in in your browser…"
+        defer { busy = false }
+        do {
+            _ = try await bridge.execute(settings: settings, command: ["login"], timeout: 200)
+            var latest = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"], timeout: 30))
+            if latest.monitoring?.mode != "cloud" {
+                _ = try await bridge.execute(settings: settings, command: ["sync"], timeout: 300)
+                latest = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"]))
+            }
+            status = latest
+            needsSignIn = false
+            error = nil
+            notice = "AWS reconnected. Your saved connection is unchanged."
+            if inboxPage != nil { await reloadInboxPage() }
+            await checkDesktopAlerts()
+        } catch {
+            notice = nil
+            recordFailure(error)
+        }
     }
 
     func refresh() async {
@@ -99,9 +133,10 @@ final class AgentModel: ObservableObject {
                 _ = try await bridge.execute(settings: settings, command: ["history"], timeout: 240)
             }
             status = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"]))
+            needsSignIn = false
             await checkDesktopAlerts()
             notice = settings.demo ? "Demo refreshed. No AWS requests made." : "Latest available AWS billing collected."
-        } catch { self.error = error.localizedDescription }
+        } catch { recordFailure(error) }
         busy = false
     }
 
@@ -112,9 +147,10 @@ final class AgentModel: ObservableObject {
         do {
             _ = try await bridge.execute(settings: settings, command: ["history"], timeout: 240)
             status = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"]))
-            await checkDesktopAlerts()
             error = nil
-        } catch { self.error = error.localizedDescription }
+            needsSignIn = false
+            await checkDesktopAlerts()
+        } catch { recordFailure(error) }
     }
 
     func enableSavings() async {
@@ -129,7 +165,8 @@ final class AgentModel: ObservableObject {
             _ = try await bridge.execute(settings: settings, command: ["sync"], timeout: 180)
             status = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"]))
             error = nil
-        } catch { self.error = error.localizedDescription }
+            needsSignIn = false
+        } catch { recordFailure(error) }
     }
 
     func save(_ updated: AgentSettings) async {
@@ -141,6 +178,7 @@ final class AgentModel: ObservableObject {
             _ = try updated.makeProcess(["status"])
             UserDefaults.standard.set(try JSONEncoder().encode(updated), forKey: preferenceKey)
             settings = updated
+            needsSignIn = false
             status = nil
             inboxPage = nil
             inboxFilter = .open
@@ -149,7 +187,7 @@ final class AgentModel: ObservableObject {
             answer = ""
             notice = nil
             await load(initial: true)
-        } catch { self.error = error.localizedDescription }
+        } catch { recordFailure(error) }
     }
 
     private func checkDesktopAlerts() async {
@@ -160,7 +198,10 @@ final class AgentModel: ObservableObject {
             let data = try await bridge.execute(settings: settings, command: ["alerts", "--after", String(after)], timeout: 15)
             let page = try AlertPage.decode(data)
             try await notifier.publish(page, status: status)
-        } catch { notice = "Mac notification delivery needs attention: " + error.localizedDescription }
+        } catch {
+            if (error as? BridgeError)?.requiresSignIn == true { recordFailure(error) }
+            else { notice = "Mac notification delivery needs attention: " + error.localizedDescription }
+        }
     }
 
     func loadInbox(filter: InboxFilter? = nil, direction: Int = 0) async {
@@ -189,6 +230,7 @@ final class AgentModel: ObservableObject {
         } catch {
             inboxPage = nil
             inboxError = error.localizedDescription
+            if (error as? BridgeError)?.requiresSignIn == true { recordFailure(error) }
         }
     }
 
@@ -209,12 +251,13 @@ final class AgentModel: ObservableObject {
             return true
         } catch {
             inboxError = error.localizedDescription
+            if (error as? BridgeError)?.requiresSignIn == true { recordFailure(error) }
             return false
         }
     }
 
     func startWorker() async {
-        guard !busy && !configuring && !isMonitoring && !usesCloudMonitoring else { return }
+        guard !busy && !configuring && !needsSignIn && !isMonitoring && !usesCloudMonitoring else { return }
         error = nil
         do {
             let process = try settings.makeProcess(["run"])
@@ -234,7 +277,7 @@ final class AgentModel: ObservableObject {
                     self.workerLog = nil
                     if exited.terminationStatus != 0 && exited.terminationReason == .exit {
                         let detail = (try? String(contentsOf: log, encoding: .utf8)) ?? ""
-                        self.error = "Worker stopped. " + String(detail.suffix(1000))
+                        self.recordFailure(BridgeError.processFailure(detail))
                     }
                     await self.load()
                 }
@@ -245,7 +288,7 @@ final class AgentModel: ObservableObject {
             ownsWorker = true
             notice = settings.demo ? "Demo worker started. Emails stay local." : "Monitoring started using your configured email delivery."
             await load()
-        } catch { self.error = error.localizedDescription }
+        } catch { recordFailure(error) }
     }
 
     func stopWorker() {
@@ -281,7 +324,7 @@ final class AgentModel: ObservableObject {
             let file = directory.appendingPathComponent(settings.demo ? "demo-report.txt" : "aws-report.txt")
             try data.write(to: file, options: .atomic)
             NSWorkspace.shared.open(file)
-        } catch { self.error = error.localizedDescription }
+        } catch { recordFailure(error) }
     }
 
     func openPreviews() {
@@ -289,6 +332,6 @@ final class AgentModel: ObservableObject {
         do {
             try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
             NSWorkspace.shared.open(URL(fileURLWithPath: path))
-        } catch { self.error = error.localizedDescription }
+        } catch { recordFailure(error) }
     }
 }

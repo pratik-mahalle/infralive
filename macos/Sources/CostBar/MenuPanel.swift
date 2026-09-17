@@ -20,6 +20,7 @@ struct MenuPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            if model.needsSignIn { reconnectBanner }
             if model.status != nil {
                 Picker("View", selection: $tab) {
                     ForEach(PanelTab.allCases, id: \.self) { item in
@@ -33,7 +34,7 @@ struct MenuPanel: View {
                 } else if let snapshot = model.status?.snapshot {
                   ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        if let error = model.error { InlineNotice(text: error, warning: true) }
+                        if let error = model.error, !model.needsSignIn { InlineNotice(text: error, warning: true) }
                         switch tab {
                         case .overview: SpendingOverview(snapshot: snapshot, totals: model.status?.dailyTotals ?? [])
                         case .changes: activity
@@ -57,6 +58,25 @@ struct MenuPanel: View {
         } message: {
             Text("Account \(model.status?.snapshot?.accountId ?? "") only. Enables standard Compute Optimizer and Cost Optimization Hub recommendations. AWS may create service-linked roles. Does not enroll member accounts or enable paid enhanced metrics. Your infrastructure is not resized or deleted.")
         }
+    }
+
+    private var reconnectBanner: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label("AWS sign-in required", systemImage: "person.crop.circle.badge.exclamationmark")
+                .font(.system(size: 12, weight: .semibold))
+            Text(model.status == nil ? "Your AWS session expired. Reconnect to load your account." : "Your AWS session expired. Showing the last collected data.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button(model.busy ? "Signing in…" : "Sign in to AWS") { Task { await model.reconnect() } }
+                    .controlSize(.small).disabled(model.busy || model.configuring)
+                Button("Connection settings") { showWindow("settings") }.controlSize(.small)
+            }
+            if let error = model.error, error != BridgeError.authenticationRequired.localizedDescription {
+                Text(error).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12).background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 18).padding(.bottom, 12)
     }
 
     private var header: some View {
@@ -218,19 +238,19 @@ struct MenuPanel: View {
                 InlineNotice(text: "\(notifications.failed) email deliveries need attention.", warning: true)
             }
             HStack(spacing: 6) {
-                Circle().fill(model.isMonitoring ? Color.green : Color.secondary.opacity(0.5)).frame(width: 5, height: 5).accessibilityHidden(true)
+                Circle().fill(model.needsSignIn ? Color.orange : (model.isMonitoring ? Color.green : Color.secondary.opacity(0.5))).frame(width: 5, height: 5).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(model.usesCloudMonitoring ? (model.isMonitoring ? "Monitoring in AWS" : "Cloud needs attention") : (model.isMonitoring ? "Monitoring" : "Paused"))
+                    Text(model.needsSignIn ? "AWS sign-in required" : (model.usesCloudMonitoring ? (model.isMonitoring ? "Monitoring in AWS" : "Cloud needs attention") : (model.isMonitoring ? "Monitoring" : "Paused")))
                         .font(.system(size: 11, weight: .medium))
                     if let date = model.status?.snapshot?.collectedDate {
-                        Text("Updated \(date.formatted(date: .omitted, time: .shortened))")
+                        Text("\(model.needsSignIn ? "Last data" : "Updated") \(date.formatted(date: .abbreviated, time: .shortened))")
                             .font(.system(size: 10)).foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
                 if model.ownsWorker {
                     Button("Pause") { model.stopWorker() }.controlSize(.small)
-                } else if !model.isMonitoring && !model.usesCloudMonitoring {
+                } else if !model.needsSignIn && !model.isMonitoring && !model.usesCloudMonitoring {
                     Button("Start monitoring") { Task { await model.startWorker() } }.controlSize(.small).disabled(model.busy)
                 }
                 Button("Report") { Task { await model.openReport() } }.controlSize(.small)
