@@ -112,15 +112,21 @@ def test_install_requires_active_write_trail(aws, tmp_path):
     aws["cloudformation"].create_stack.assert_not_called()
 
 
-def test_install_creates_only_explicit_template_and_saves_queue(aws, tmp_path):
+@pytest.mark.parametrize("unrelated_template", [False, True])
+def test_install_uses_installed_template_from_separate_data_directory(
+    aws, tmp_path, monkeypatch, unrelated_template
+):
     cf = aws["cloudformation"]
     cf.describe_stacks.side_effect = [aws_error("ValidationError", "Stack does not exist"), stack()]
-    (tmp_path / "infra").mkdir()
-    (tmp_path / "infra/events.json").write_text('{"Resources":{}}')
+    monkeypatch.chdir(tmp_path)
+    if unrelated_template:
+        (tmp_path / "infra").mkdir()
+        (tmp_path / "infra/events.json").write_text('{"Resources":{}}')
+    expected = (Path(__file__).resolve().parents[1] / "infra/events.json").read_text()
     result = setup.install_events("test", "us-east-1", ACCOUNT, session=object(), root=tmp_path)
     cf.create_stack.assert_called_once_with(
         StackName=setup.STACK,
-        TemplateBody='{"Resources":{}}',
+        TemplateBody=expected,
         Tags=[{"Key": "Application", "Value": "CostBar"}],
     )
     assert tomllib.loads(Path(result["config_path"]).read_text())["aws"]["queues"]["us-east-1"] == QUEUE

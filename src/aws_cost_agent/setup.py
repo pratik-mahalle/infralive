@@ -244,7 +244,8 @@ def install_events(profile, region, account, session=None, root=Path(".")):
     cf = client(session, "cloudformation")
     queue = stack_queue(session)
     if not queue:
-        template = (root / "infra" / "events.json").read_text()
+        # Templates belong to the installed code, not the writable account-data directory.
+        template = (Path(__file__).resolve().parents[2] / "infra" / "events.json").read_text()
         cf.create_stack(
             StackName=STACK, TemplateBody=template, Tags=[{"Key": "Application", "Value": "CostBar"}]
         )

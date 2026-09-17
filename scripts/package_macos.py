@@ -32,6 +32,8 @@ def main():
         agent / "src/aws_cost_agent",
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
     )
+    (agent / "infra").mkdir()
+    shutil.copy2(ROOT / "infra/events.json", agent / "infra/events.json")
     for name in ("README.md", "config.example.toml"):
         shutil.copy2(ROOT / name, agent / name)
     shutil.copytree(
@@ -58,6 +60,17 @@ def main():
     subprocess.run(["codesign", "--force", "--deep", "--sign", "-", str(target)], check=True)
     subprocess.run(["codesign", "--verify", "--deep", "--strict", str(target)], check=True)
     subprocess.run([str(target / "Contents/MacOS/CostBar"), "--check-bundle"], check=True)
+    subprocess.run(
+        [
+            str(resources / "Python/bin/python3.12"),
+            "-B",
+            "-s",
+            str(ROOT / "scripts/check_macos_setup.py"),
+            str(target),
+        ],
+        check=True,
+    )
+    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(target)], check=True)
     archive = release / f"Cloudwake-{version}-macos-arm64.zip"
     subprocess.run(
         ["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", str(target), str(archive)], check=True
