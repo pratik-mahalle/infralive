@@ -41,7 +41,8 @@ enum CostBarLauncher {
         if let flag = args.firstIndex(of: "--inbox-data"), args.count > flag + 1 {
             inbox = try InboxPage.decode(Data(contentsOf: URL(fileURLWithPath: args[flag + 1])))
         }
-        let model = AgentModel(start: false, fixture: fixture, inboxFixture: inbox)
+        let onboarding = args.contains("--onboarding")
+        let model = AgentModel(start: false, fixture: onboarding ? nil : fixture, inboxFixture: inbox, awaitingConnection: onboarding)
         if args.contains("--session-expired") { model.recordFailure(BridgeError.authenticationRequired) }
         let dark = args.contains("--dark")
         NSApplication.shared.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -91,11 +92,7 @@ struct CostBarApp: App {
                     workspace.shutdown()
                 }
         } label: {
-            Label {
-                Text(workspace.selectedModel.menuLabel)
-            } icon: {
-                Image(nsImage: CloudwakeArtwork.menuImage)
-            }
+            WorkspaceMenuLabel(workspace: workspace)
         }
         .menuBarExtraStyle(.window)
 
@@ -108,5 +105,27 @@ struct CostBarApp: App {
             AskPanel(model: workspace.selectedModel).id(workspace.selectedID)
         }
         .defaultSize(width: 640, height: 480)
+    }
+}
+
+private struct WorkspaceMenuLabel: View {
+    @ObservedObject var workspace: AccountWorkspace
+    @Environment(\.openWindow) private var openWindow
+    @State private var didCheckOnboarding = false
+
+    var body: some View {
+        Label {
+            Text(workspace.selectedModel.menuLabel)
+        } icon: {
+            Image(nsImage: CloudwakeArtwork.menuImage)
+        }
+        .task {
+            guard !didCheckOnboarding else { return }
+            didCheckOnboarding = true
+            if workspace.needsConnection {
+                openWindow(id: "settings")
+                NSApplication.shared.activate(ignoringOtherApps: true)
+            }
+        }
     }
 }

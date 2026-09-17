@@ -22,39 +22,52 @@ struct MenuPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            if let workspace {
-                AccountPicker(workspace: workspace).font(.caption)
-                    .padding(.horizontal, 18).padding(.bottom, 12)
-            }
-            if model.needsSignIn { reconnectBanner }
-            if model.status != nil {
-                Picker("View", selection: $tab) {
-                    ForEach(PanelTab.allCases, id: \.self) { item in
-                        Text(item == .inbox && unreadCount > 0 ? "Inbox \(unreadCount > 99 ? "99+" : String(unreadCount))" : item.rawValue).tag(item)
-                    }
+            if model.awaitingConnection {
+                ScrollView {
+                    ConnectionPanel(model: model, workspace: workspace)
+                        .padding(.horizontal, 20).padding(.bottom, 20)
                 }
-                .pickerStyle(.segmented).labelsHidden()
-                .padding(.horizontal, 18).padding(.bottom, 14)
-                if tab == .inbox {
-                    InboxView(model: model, selectedAlert: model.isPreview && CommandLine.arguments.contains("--inbox-detail") ? model.inboxPage?.alerts.first : nil)
-                } else if let snapshot = model.status?.snapshot {
-                  ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        if let error = model.error, !model.needsSignIn { InlineNotice(text: error, warning: true) }
-                        switch tab {
-                        case .overview: SpendingOverview(snapshot: snapshot, totals: model.status?.dailyTotals ?? [])
-                        case .changes: activity
-                        case .savings: savings(snapshot)
-                        case .inbox: EmptyView()
+                Divider()
+                HStack {
+                    Spacer()
+                    Button("Quit Cloudwake") { NSApplication.shared.terminate(nil) }
+                        .controlSize(.small).keyboardShortcut("q")
+                }.padding(.horizontal, 18).padding(.vertical, 12)
+            } else {
+                if let workspace {
+                    AccountPicker(workspace: workspace).font(.caption)
+                        .padding(.horizontal, 18).padding(.bottom, 12)
+                }
+                if model.needsSignIn { reconnectBanner }
+                if model.status != nil {
+                    Picker("View", selection: $tab) {
+                        ForEach(PanelTab.allCases, id: \.self) { item in
+                            Text(item == .inbox && unreadCount > 0 ? "Inbox \(unreadCount > 99 ? "99+" : String(unreadCount))" : item.rawValue).tag(item)
                         }
-                    }.padding(.horizontal, 20).padding(.bottom, 20)
-                  }.id(tab)
-                } else {
-                    emptyState
-                }
-            } else { emptyState }
-            Divider()
-            footer
+                    }
+                    .pickerStyle(.segmented).labelsHidden()
+                    .padding(.horizontal, 18).padding(.bottom, 14)
+                    if tab == .inbox {
+                        InboxView(model: model, selectedAlert: model.isPreview && CommandLine.arguments.contains("--inbox-detail") ? model.inboxPage?.alerts.first : nil)
+                    } else if let snapshot = model.status?.snapshot {
+                      ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            if let error = model.error, !model.needsSignIn { InlineNotice(text: error, warning: true) }
+                            switch tab {
+                            case .overview: SpendingOverview(snapshot: snapshot, totals: model.status?.dailyTotals ?? [])
+                            case .changes: activity
+                            case .savings: savings(snapshot)
+                            case .inbox: EmptyView()
+                            }
+                        }.padding(.horizontal, 20).padding(.bottom, 20)
+                      }.id(tab)
+                    } else {
+                        emptyState
+                    }
+                } else { emptyState }
+                Divider()
+                footer
+            }
         }
         .frame(width: Self.width, height: Self.height)
         .background { MacPanelBackground() }

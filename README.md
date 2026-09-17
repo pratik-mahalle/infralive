@@ -2,7 +2,7 @@
   <img src="docs/assets/cloudwake.svg" width="112" height="112" alt="Cloudwake logo">
 </p>
 <h1 align="center">Cloudwake</h1>
-<p align="center"><strong>Version 1.1.0 · MIT licensed</strong></p>
+<p align="center"><strong>Version 1.1.1 · MIT licensed</strong></p>
 <p align="center"><strong>Know what your AWS is costing. Catch what it leaves running.</strong></p>
 <p align="center">A native Mac menu bar app for AWS spending, resource activity, and savings—with optional monitoring that stays awake in AWS.</p>
 <p align="center">
@@ -79,8 +79,8 @@ bash macos/build.sh
 open dist/Cloudwake.app
 ```
 
-On first launch, Cloudwake starts in demo mode. Look for its cloud symbol and spending amount
-in the menu bar. The local build uses this checkout's Python environment, so keep the project
+On first launch, Cloudwake opens AWS account setup directly. Choose an AWS profile or paste
+credentials to connect; the menu bar shows your spending after collection. The local build uses this checkout's Python environment, so keep the project
 and `.venv` available. Standalone downloads bundle their own runtime; the local development build uses your checkout.
 
 Prefer a terminal? The CLI works without the Mac app:

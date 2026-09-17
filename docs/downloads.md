@@ -1,6 +1,6 @@
 # Install Cloudwake
 
-Cloudwake v1.1.0 provides a standalone **Apple silicon** app for **macOS 13+**.
+Cloudwake v1.1.1 provides a standalone **Apple silicon** app for **macOS 13+**.
 Python and the AWS SDK are bundled. You do not need a source checkout, separate Python install,
 or Xcode to use the downloaded app. Intel Macs currently require a source build.
 
@@ -13,15 +13,16 @@ brew install --cask pratik-mahalle/tap/cloudwake
 
 ## Direct download
 
-Download `Cloudwake-1.1.0-macos-arm64.zip` from the
-[v1.1.0 release](https://github.com/pratik-mahalle/infralive/releases/tag/v1.1.0), unzip it,
+Download `Cloudwake-1.1.1-macos-arm64.zip` from the
+[v1.1.1 release](https://github.com/pratik-mahalle/infralive/releases/tag/v1.1.1), unzip it,
 and move Cloudwake.app to Applications. Open it and look for the cloud in your menu bar.
 
 This build is ad-hoc signed and **not Apple-notarized**. macOS may require approval in
 System Settings → Privacy & Security before opening. Only approve the download if you trust
 its source. Homebrew installation does not bypass Gatekeeper. The release includes SHA256SUMS.txt.
 
-The first launch uses demo data. In Settings, choose an existing **AWS profile**, or choose
+The first launch opens **Connect your AWS account** directly, without loading demo spending.
+Choose an existing **AWS profile**, or choose
 **Paste credentials** for access keys or temporary credentials. Pasted credentials are stored
 in macOS Keychain after AWS verifies the account. This option needs neither SSO nor AWS CLI.
 SSO profiles use your existing AWS CLI installation for browser sign-in.

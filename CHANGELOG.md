@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 — 2026-09-17
+
+- Open AWS connection setup directly on a fresh install instead of loading demo spending.
+- Show the connection form directly in the menu until an account is connected.
+- Replace the setup placeholder with the verified account and return to setup after removing the last account.
+- Preserve existing saved connections and monitoring preferences.
+
 ## 1.1.0 — 2026-09-17
 
 - Connect multiple AWS accounts and switch between their spending, activity, savings, and inboxes.

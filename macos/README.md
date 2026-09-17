@@ -15,7 +15,8 @@ open "dist/Cloudwake.app"
 ```
 
 Look for the cloud and spending amount in the **macOS menu bar**. There is no Dock icon.
-On first launch, the app uses demo data. Click the cloud to see:
+On first launch, the app shows **Connect your AWS account** directly. Connect using a profile
+or pasted credentials. Once connected, click the cloud to see:
 
 - Month-to-date charges before credits/refunds, credits, net balance, forecast and billing freshness.
 - A 14-day spending chart, largest services and cost alerts.

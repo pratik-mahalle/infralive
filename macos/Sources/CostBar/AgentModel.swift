@@ -20,6 +20,7 @@ final class AgentModel: ObservableObject {
     @Published private(set) var inboxError: String?
     @Published private(set) var inboxCursors: [Int] = [0]
     let isPreview: Bool
+    let awaitingConnection: Bool
 
     private let bridge: any AgentExecuting
     let notifier: DesktopNotifier
@@ -31,8 +32,10 @@ final class AgentModel: ObservableObject {
     private let preferenceKey: String?
 
     init(start: Bool = true, fixture: AgentStatus? = nil, inboxFixture: InboxPage? = nil, bridge: any AgentExecuting = AgentBridge(),
-         initialSettings: AgentSettings? = nil, monitoringRequested: Bool = false, notifier: DesktopNotifier? = nil) {
+         initialSettings: AgentSettings? = nil, monitoringRequested: Bool = false, notifier: DesktopNotifier? = nil,
+         awaitingConnection: Bool = false) {
         self.bridge = bridge
+        self.awaitingConnection = awaitingConnection
         self.notifier = notifier ?? DesktopNotifier()
         preferenceKey = initialSettings == nil ? "CostBar.settings.v1" : nil
         self.monitoringRequested = monitoringRequested
@@ -55,10 +58,12 @@ final class AgentModel: ObservableObject {
         if let fixture { settings.demo = fixture.demo }
         terminationSubscription = NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
             .sink { [weak self] _ in self?.shutdown() }
-        if start {
+        if start && !awaitingConnection {
             timer = Task { [weak self] in
+                guard !Task.isCancelled else { return }
                 await self?.notifier.checkPermission()
                 await self?.load(initial: true)
+                guard !Task.isCancelled else { return }
                 if self?.monitoringRequested == true || CommandLine.arguments.contains("--resume-monitoring") {
                     await self?.startWorker()
                 }
@@ -73,6 +78,7 @@ final class AgentModel: ObservableObject {
     }
 
     var menuLabel: String {
+        if awaitingConnection { return "Connect AWS" }
         guard let snapshot = status?.snapshot else { return settings.demo ? "Demo" : "AWS" }
         return (settings.demo ? "Demo " : "") + currency(snapshot.analysis.displayedSpend,
                                                         code: snapshot.analysis.currency, compact: true)
@@ -82,7 +88,7 @@ final class AgentModel: ObservableObject {
     var isMonitoring: Bool { !needsSignIn && (usesCloudMonitoring ? status?.monitoring?.healthy == true : ownsWorker || status?.worker.running == true) }
 
     func load(initial: Bool = false) async {
-        guard !busy && !needsSignIn else { return }
+        guard !awaitingConnection && !busy && !needsSignIn else { return }
         busy = true
         defer { busy = false }
         do {

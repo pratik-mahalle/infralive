@@ -7,8 +7,9 @@ struct SavedAccount: Codable, Identifiable {
     var accountID: String?
     var settings: AgentSettings
     var monitoringRequested: Bool
+    var needsConnection: Bool? = nil
 
-    var title: String { settings.demo ? "Demo" : (name.isEmpty ? (accountID ?? "AWS account") : name) }
+    var title: String { needsConnection == true ? "Connect AWS" : (settings.demo ? "Demo" : (name.isEmpty ? (accountID ?? "AWS account") : name)) }
     var label: String { title + (accountID != nil && title != accountID ? " · " + accountID! : "") }
 }
 
@@ -51,9 +52,11 @@ final class AccountWorkspace: ObservableObject {
         if accounts.isEmpty {
             let legacy = defaults.data(forKey: "CostBar.settings.v1")
                 .flatMap { try? JSONDecoder().decode(AgentSettings.self, from: $0) }
-            let settings = initialSettings ?? legacy ?? .initial
+            var settings = initialSettings ?? legacy ?? .initial
+            let needsConnection = initialSettings == nil && legacy == nil
+            if needsConnection { settings.demo = false }
             let account = SavedAccount(id: UUID().uuidString, name: settings.demo ? "Demo" : "Existing account",
-                                       settings: settings, monitoringRequested: false)
+                                       settings: settings, monitoringRequested: false, needsConnection: needsConnection)
             accounts = [account]
             selectedID = account.id
         }
@@ -63,7 +66,8 @@ final class AccountWorkspace: ObservableObject {
     }
 
     var selectedModel: AgentModel { models[selectedID]! }
-    var realAccountCount: Int { accounts.filter { !$0.settings.demo }.count }
+    var realAccountCount: Int { accounts.filter { !$0.settings.demo && $0.needsConnection != true }.count }
+    var needsConnection: Bool { selectedModel.awaitingConnection }
     var isConfiguring: Bool { models.values.contains(where: \.configuring) }
     func model(for id: String) -> AgentModel? { models[id] }
 
@@ -82,7 +86,7 @@ final class AccountWorkspace: ObservableObject {
         }
         _ = try settings.makeProcess(["status"])
         if let existing = accounts.first(where: {
-            !$0.settings.demo && ($0.accountID == accountID || models[$0.id]?.status?.snapshot?.accountId == accountID || $0.settings.configPath == settings.configPath)
+            !$0.settings.demo && $0.needsConnection != true && ($0.accountID == accountID || models[$0.id]?.status?.snapshot?.accountId == accountID || $0.settings.configPath == settings.configPath)
         }), let model = models[existing.id] {
             // One connection per AWS account prevents duplicate workers and duplicate alerts.
             guard !model.busy && !model.asking else {
@@ -120,6 +124,12 @@ final class AccountWorkspace: ObservableObject {
         accounts.append(entry)
         attach(entry)
         selectedID = entry.id
+        for placeholder in accounts.filter({ $0.needsConnection == true }) {
+            models[placeholder.id]?.shutdown()
+            subscriptions.removeValue(forKey: placeholder.id)
+            models.removeValue(forKey: placeholder.id)
+        }
+        accounts.removeAll { $0.needsConnection == true }
         persist()
         return entry.id
     }
@@ -140,10 +150,11 @@ final class AccountWorkspace: ObservableObject {
         accounts.removeAll { $0.id == id }
         if accounts.isEmpty {
             var settings = model.settings
-            settings.demo = true
-            let demo = SavedAccount(id: UUID().uuidString, name: "Demo", settings: settings, monitoringRequested: false)
-            accounts.append(demo)
-            attach(demo)
+            settings.demo = false
+            let connection = SavedAccount(id: UUID().uuidString, name: "Connect AWS", settings: settings,
+                                          monitoringRequested: false, needsConnection: true)
+            accounts.append(connection)
+            attach(connection)
         }
         if selectedID == id { selectedID = accounts[0].id }
         persist()
@@ -153,7 +164,8 @@ final class AccountWorkspace: ObservableObject {
 
     private func attach(_ entry: SavedAccount) {
         let model = AgentModel(start: start, bridge: makeBridge(), initialSettings: entry.settings,
-                               monitoringRequested: entry.monitoringRequested, notifier: notifier)
+                               monitoringRequested: entry.monitoringRequested, notifier: notifier,
+                               awaitingConnection: entry.needsConnection == true)
         model.accountLabel = notificationLabel(entry)
         models[entry.id] = model
         var tokens = Set<AnyCancellable>()

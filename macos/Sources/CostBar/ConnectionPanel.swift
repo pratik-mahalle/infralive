@@ -70,11 +70,11 @@ struct ConnectionPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(workspace == nil ? "Connect your AWS account" : "Add or reconnect an account", systemImage: "link.circle.fill")
+            Label(workspace == nil || model.awaitingConnection ? "Connect your AWS account" : "Add or reconnect an account", systemImage: "link.circle.fill")
                 .font(.headline)
             Text("Use an AWS profile on this Mac, or paste access credentials. SSO is optional.")
                 .font(.callout).foregroundStyle(.secondary)
-            if !model.settings.demo {
+            if !model.settings.demo && !model.awaitingConnection {
                 Label("AWS connection saved" + (model.status?.snapshot.map { " · " + $0.accountId } ?? ""), systemImage: "checkmark.circle")
                     .font(.caption).foregroundStyle(.teal)
             }

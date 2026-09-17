@@ -120,12 +120,13 @@ struct AccountWorkspaceTests {
         #expect(workspace.realAccountCount == 1)
         #expect(workspace.accounts.first?.title == "Production")
         workspace.remove(id)
-        #expect(workspace.selectedModel.settings.demo)
+        #expect(workspace.needsConnection)
+        #expect(!workspace.selectedModel.settings.demo)
         #expect(workspace.realAccountCount == 0)
         #expect(FileManager.default.fileExists(atPath: original.configPath))
         let restored = AccountWorkspace(defaults: defaults, start: false)
         defer { restored.shutdown() }
-        #expect(restored.selectedModel.settings.demo)
+        #expect(restored.needsConnection)
     }
 
     @Test func relaunchResumesEveryEnabledAccountAndKeepsPausedAccountPaused() async throws {
@@ -149,6 +150,31 @@ struct AccountWorkspaceTests {
         #expect(restored.model(for: second)?.ownsWorker == true)
         #expect(restored.model(for: paused)?.ownsWorker == false)
         #expect(restored.selectedID == paused)
+    }
+
+    @Test func freshInstallStartsWithConnectionSetupAndNeverLoadsDemo() async throws {
+        let (root, defaults, suite) = try environment()
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root) }
+        let bridge = AccountBridge()
+        let workspace = AccountWorkspace(defaults: defaults, start: true, makeBridge: { bridge })
+        defer { workspace.shutdown() }
+        #expect(workspace.needsConnection)
+        #expect(workspace.realAccountCount == 0)
+        #expect(workspace.selectedModel.menuLabel == "Connect AWS")
+        #expect(!workspace.selectedModel.settings.demo)
+        await workspace.selectedModel.load(initial: true)
+        await workspace.selectedModel.startWorker()
+        #expect(workspace.selectedModel.status == nil)
+        #expect(await bridge.commands.isEmpty)
+        let restored = AccountWorkspace(defaults: defaults, start: false)
+        defer { restored.shutdown() }
+        #expect(restored.needsConnection)
+        let id = try await workspace.connect(settings: settings(root, account: "111111111111"), accountID: "111111111111", name: "Production")
+        #expect(!workspace.needsConnection)
+        #expect(workspace.selectedID == id)
+        #expect(workspace.accounts.count == 1)
+        #expect(workspace.realAccountCount == 1)
+        #expect(workspace.accounts.allSatisfy { !$0.settings.demo && $0.needsConnection != true })
     }
 
     @Test func unreadableRegistryIsNotOverwritten() throws {

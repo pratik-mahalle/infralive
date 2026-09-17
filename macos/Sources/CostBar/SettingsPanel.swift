@@ -20,51 +20,53 @@ struct SettingsPanel: View {
                 HStack(spacing: 12) {
                     BrandMark()
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Cloudwake Settings").font(.title2).fontWeight(.semibold)
-                        Text("AWS connection and notifications.").foregroundStyle(.secondary)
+                        Text(model.awaitingConnection ? "Welcome to Cloudwake" : "Cloudwake Settings").font(.title2).fontWeight(.semibold)
+                        Text(model.awaitingConnection ? "Connect AWS to see your spending and resource activity." : "AWS connection and notifications.").foregroundStyle(.secondary)
                     }
                 }
-                if let workspace {
+                if let workspace, !model.awaitingConnection {
                     AccountSettings(workspace: workspace)
                     Divider()
                 }
                 ConnectionPanel(model: model, previewReview: previewReview, workspace: workspace)
-                Divider()
-                NotificationSettings(model: model, notifier: model.notifier)
-                Divider()
-                if let cloud = model.status?.monitoring {
-                    VStack(alignment: .leading, spacing: 7) {
-                        Label("Always-on monitoring", systemImage: "cloud").fontWeight(.medium)
-                        Text("\(cloud.functionName) · \(cloud.region)").font(.caption).foregroundStyle(.secondary)
-                        Text(cloud.message).font(.caption).foregroundStyle(.secondary)
-                        Text("AWS checks activity every five minutes and costs every six hours. Closing this app does not stop the cloud monitor. Email is disabled.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Link("Open cloud monitor", destination: URL(string: "https://console.aws.amazon.com/lambda/home?region=\(cloud.region)#/functions/\(cloud.functionName)")!)
+                if !model.awaitingConnection {
+                    Divider()
+                    NotificationSettings(model: model, notifier: model.notifier)
+                    Divider()
+                    if let cloud = model.status?.monitoring {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Label("Always-on monitoring", systemImage: "cloud").fontWeight(.medium)
+                            Text("\(cloud.functionName) · \(cloud.region)").font(.caption).foregroundStyle(.secondary)
+                            Text(cloud.message).font(.caption).foregroundStyle(.secondary)
+                            Text("AWS checks activity every five minutes and costs every six hours. Closing this app does not stop the cloud monitor. Email is disabled.")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Link("Open cloud monitor", destination: URL(string: "https://console.aws.amazon.com/lambda/home?region=\(cloud.region)#/functions/\(cloud.functionName)")!)
+                        }
+                        Divider()
+                    }
+                    DisclosureGroup("Advanced settings & demo") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Toggle("Use demo data", isOn: $draft.demo).toggleStyle(.switch).tint(.accentColor)
+                            pathField("Agent project folder", value: $draft.projectPath, directory: true) {
+                                draft.pythonPath = draft.projectPath + "/.venv/bin/python"
+                                draft.configPath = draft.projectPath + "/config.toml"
+                            }
+                            pathField("Python executable", value: $draft.pythonPath, directory: false)
+                            if !draft.demo {
+                                pathField("AWS configuration file", value: $draft.configPath, directory: false)
+                                Button("Create / open configuration") { openConfig() }
+                            }
+                            Button("Apply advanced settings") { Task { await model.save(draft) } }
+                                .disabled(model.busy || model.asking || model.ownsWorker || model.configuring)
+                        }.padding(.top, 12)
                     }
                     Divider()
-                }
-                DisclosureGroup("Advanced settings & demo") {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Toggle("Use demo data", isOn: $draft.demo).toggleStyle(.switch).tint(.accentColor)
-                        pathField("Agent project folder", value: $draft.projectPath, directory: true) {
-                            draft.pythonPath = draft.projectPath + "/.venv/bin/python"
-                            draft.configPath = draft.projectPath + "/config.toml"
-                        }
-                        pathField("Python executable", value: $draft.pythonPath, directory: false)
-                        if !draft.demo {
-                            pathField("AWS configuration file", value: $draft.configPath, directory: false)
-                            Button("Create / open configuration") { openConfig() }
-                        }
-                        Button("Apply advanced settings") { Task { await model.save(draft) } }
-                            .disabled(model.busy || model.asking || model.ownsWorker || model.configuring)
-                    }.padding(.top, 12)
-                }
-                Divider()
-                Text(model.usesCloudMonitoring ? "The menu reads private cloud state every 30 seconds. Mac banners appear while this app is open; the cloud inbox keeps collecting when it is closed." : "The menu reads local data every 30 seconds. Refresh collects AWS costs. Start runs the worker and its configured email delivery while this app is open. Monitoring pauses when your Mac sleeps.")
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                if model.ownsWorker {
-                    Label("Stop the worker before changing settings.", systemImage: "info.circle")
-                        .font(.caption).foregroundStyle(.orange)
+                    Text(model.usesCloudMonitoring ? "The menu reads private cloud state every 30 seconds. Mac banners appear while this app is open; the cloud inbox keeps collecting when it is closed." : "The menu reads local data every 30 seconds. Refresh collects AWS costs. Start runs the worker and its configured email delivery while this app is open. Monitoring pauses when your Mac sleeps.")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    if model.ownsWorker {
+                        Label("Stop the worker before changing settings.", systemImage: "info.circle")
+                            .font(.caption).foregroundStyle(.orange)
+                    }
                 }
                 if let error = model.error {
                     Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
