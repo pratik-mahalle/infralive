@@ -120,6 +120,19 @@ Settings show cloud health and the Lambda console link. Local Start/Pause contro
 by cloud status; quitting the app does not stop AWS collection. Email remains disabled.
 Follow the [always-on guide](../docs/always-on.md) to deploy, pause, or recover the cloud service.
 
+## Cloud companion
+
+Cloudwake's small cloud companion appears in the app and in compact alert bubbles. Foreground
+notifications use the bubble; background delivery stays with macOS Notification Center and Focus.
+Clicking a native notification opens its bubble. **Review** opens that account's inbox in its own
+window. **In 1 hour** snoozes the alert (or grouped alerts) in the original account's inbox; it
+returns to Open after an hour when the inbox is next checked. This does not schedule another Mac
+banner. The close button leaves the alert in the inbox.
+
+Turn the companion off in **Settings → Mac notifications**, or use **Preview** to see it without
+sending a notification or contacting AWS. Keyboard shortcuts **⌘1–⌘4** switch menu views. The
+spending report is available in the footer's **…** menu.
+
 ## Mac notifications
 
 Open the gear icon → **Mac notifications → Enable…** → allow notifications in the macOS prompt.

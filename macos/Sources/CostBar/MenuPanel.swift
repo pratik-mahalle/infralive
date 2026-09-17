@@ -4,8 +4,8 @@ import SwiftUI
 enum PanelTab: String, CaseIterable { case overview = "Overview", changes = "Changes", savings = "Savings", inbox = "Inbox" }
 
 struct MenuPanel: View {
-    static let width: CGFloat = 420
-    static var height: CGFloat { min(640, (NSScreen.main?.visibleFrame.height ?? 800) - 60) }
+    static let width: CGFloat = 440
+    static var height: CGFloat { min(700, (NSScreen.main?.visibleFrame.height ?? 800) - 60) }
     @ObservedObject var model: AgentModel
     var workspace: AccountWorkspace? = nil
     @Environment(\.openWindow) private var openWindow
@@ -40,13 +40,7 @@ struct MenuPanel: View {
                 }
                 if model.needsSignIn { reconnectBanner }
                 if model.status != nil {
-                    Picker("View", selection: $tab) {
-                        ForEach(PanelTab.allCases, id: \.self) { item in
-                            Text(item == .inbox && unreadCount > 0 ? "Inbox \(unreadCount > 99 ? "99+" : String(unreadCount))" : item.rawValue).tag(item)
-                        }
-                    }
-                    .pickerStyle(.segmented).labelsHidden()
-                    .padding(.horizontal, 18).padding(.bottom, 14)
+                    navigation
                     if tab == .inbox {
                         InboxView(model: model, selectedAlert: model.isPreview && CommandLine.arguments.contains("--inbox-detail") ? model.inboxPage?.alerts.first : nil)
                     } else if let snapshot = model.status?.snapshot {
@@ -69,7 +63,7 @@ struct MenuPanel: View {
                 footer
             }
         }
-        .frame(width: Self.width, height: Self.height)
+        .frame(width: Self.width, height: model.awaitingConnection ? min(520, Self.height) : Self.height)
         .background { MacPanelBackground() }
         .alert("Enable AWS savings analysis?", isPresented: $confirmSavings) {
             Button("Cancel", role: .cancel) { }
@@ -106,12 +100,12 @@ struct MenuPanel: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            BrandMark(size: 23)
-            Text("Cloudwake").font(.system(size: 13, weight: .semibold))
+            CloudMascot(size: 38)
+            Text("Cloudwake").font(.system(size: 15, weight: .semibold, design: .rounded))
             Spacer()
             if model.settings.demo {
                 Text("Demo").font(.caption).foregroundStyle(.orange)
-            } else if let snapshot = model.status?.snapshot {
+            } else if workspace == nil, let snapshot = model.status?.snapshot {
                 Text("AWS · " + snapshot.accountId).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
                     .help("Connected AWS account \(snapshot.accountId)").textSelection(.enabled)
             }
@@ -129,6 +123,37 @@ struct MenuPanel: View {
             Button { showWindow("settings") } label: { Image(systemName: "gearshape").frame(width: 24, height: 24) }
                 .accessibilityLabel("Open Cloudwake settings").help("Settings")
         }.buttonStyle(.plain).padding(.horizontal, 18).padding(.vertical, 13)
+    }
+
+    private var navigation: some View {
+        HStack(spacing: 4) {
+            ForEach(PanelTab.allCases, id: \.self) { item in
+                Button { tab = item } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: tabSymbol(item)).font(.system(size: 13, weight: .medium))
+                        Text(item == .inbox && unreadCount > 0 ? "Inbox · \(min(unreadCount, 99))" : item.rawValue)
+                            .font(.system(size: 11, weight: tab == item ? .semibold : .medium))
+                    }
+                    .frame(maxWidth: .infinity).frame(height: 48)
+                    .foregroundStyle(tab == item ? Color.primary : Color.secondary)
+                    .background(tab == item ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 12))
+                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                }.buttonStyle(.plain).accessibilityLabel(item.rawValue)
+                    .accessibilityAddTraits(tab == item ? [.isSelected] : [])
+                    .keyboardShortcut(KeyEquivalent(Character(String((PanelTab.allCases.firstIndex(of: item) ?? 0) + 1))), modifiers: .command)
+                    .help(item == .inbox ? "Your alerts, saved for later" : item.rawValue)
+            }
+        }.padding(4).background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 16))
+            .padding(.horizontal, 18).padding(.bottom, 16)
+    }
+
+    private func tabSymbol(_ tab: PanelTab) -> String {
+        switch tab {
+        case .overview: return "chart.bar.xaxis"
+        case .changes: return "clock.arrow.circlepath"
+        case .savings: return "leaf"
+        case .inbox: return "tray"
+        }
     }
 
     private var unreadCount: Int { model.inboxPage?.counts.unread ?? model.status?.inboxSummary?.unread ?? 0 }
@@ -259,17 +284,14 @@ struct MenuPanel: View {
             if let notice = model.notice {
                 Text(notice).font(.caption2).foregroundStyle(.secondary).lineLimit(2).help(notice)
             }
-            if let notifications = model.status?.notifications, notifications.failed > 0 {
-                InlineNotice(text: "\(notifications.failed) email deliveries need attention.", warning: true)
-            }
             HStack(spacing: 6) {
                 Circle().fill(model.needsSignIn ? Color.orange : (model.isMonitoring ? Color.green : Color.secondary.opacity(0.5))).frame(width: 5, height: 5).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.needsSignIn ? "AWS sign-in required" : (model.usesCloudMonitoring ? (model.isMonitoring ? "Monitoring in AWS" : "Cloud needs attention") : (model.isMonitoring ? "Monitoring" : "Paused")))
                         .font(.system(size: 11, weight: .medium))
                     if let date = model.status?.snapshot?.collectedDate {
-                        Text("\(model.needsSignIn ? "Last data" : "Updated") \(date.formatted(date: .abbreviated, time: .shortened))")
-                            .font(.system(size: 10)).foregroundStyle(.secondary)
+                        Text("\(model.needsSignIn ? "Last data" : "Synced") \(date.formatted(date: .omitted, time: .shortened))")
+                            .font(.system(size: 10)).foregroundStyle(.secondary).help(date.formatted(date: .complete, time: .shortened))
                     }
                 }
                 Spacer()
@@ -278,16 +300,11 @@ struct MenuPanel: View {
                 } else if !model.needsSignIn && !model.isMonitoring && !model.usesCloudMonitoring {
                     Button("Start monitoring") { Task { await model.startWorker() } }.controlSize(.small).disabled(model.busy)
                 }
-                Button("Report") { Task { await model.openReport() } }.controlSize(.small)
-                    .disabled(model.busy || model.status?.snapshot == nil)
                 Menu {
+                    Button("Open spending report") { Task { await model.openReport() } }
+                        .disabled(model.busy || model.status?.snapshot == nil)
                     Button("Ask about spending…") { showWindow("ask") }.disabled(model.status?.snapshot == nil)
-                    if !model.usesCloudMonitoring {
-                        Button("Open email previews") { model.openPreviews() }.disabled(model.status == nil)
-                    } else {
-                        Text("Runs while this Mac is asleep · Email disabled")
-                    }
-                    if model.status?.notifications.delivery == "preview" { Text("Email delivery: preview only") }
+                    if model.usesCloudMonitoring { Text("Runs while this Mac is asleep") }
                     if model.isMonitoring && !model.ownsWorker && !model.usesCloudMonitoring { Text("Monitoring managed by another process") }
                     Divider()
                     Button("Open project folder") { NSWorkspace.shared.open(URL(fileURLWithPath: model.settings.projectPath)) }

@@ -25,6 +25,7 @@ final class AgentModel: ObservableObject {
     private let bridge: any AgentExecuting
     let notifier: DesktopNotifier
     var accountLabel: String?
+    var connectionID: String?
     private var worker: Process?
     private var workerLog: FileHandle?
     private var timer: Task<Void, Never>?
@@ -219,7 +220,7 @@ final class AgentModel: ObservableObject {
             // One page per poll bounds notification work; subsequent polls drain bursts.
             let data = try await bridge.execute(settings: settings, command: ["alerts", "--after", String(after)], timeout: 15)
             let page = try AlertPage.decode(data)
-            try await notifier.publish(page, status: status, accountLabel: accountLabel)
+            try await notifier.publish(page, status: status, accountLabel: accountLabel, connectionID: connectionID)
         } catch {
             if (error as? BridgeError)?.requiresSignIn == true { recordFailure(error) }
             else { notice = "Mac notification delivery needs attention: " + error.localizedDescription }
@@ -240,6 +241,31 @@ final class AgentModel: ObservableObject {
             inboxCursors.removeLast()
         }
         await reloadInboxPage()
+    }
+
+    /// A notification can be from a different account or a database replaced since delivery.
+    /// Validate both identities before changing inbox state, without relying on the selected account.
+    func snoozeNotification(_ destination: AlertDestination) async throws {
+        guard destination.valid, destination.connectionID == connectionID,
+              destination.feedID == status?.notificationFeedId else {
+            throw BridgeError.message("This alert's connection changed. Open its account inbox to review it.")
+        }
+        guard !isPreview, !busy, !configuring else {
+            throw BridgeError.message("This account is busy. Try again in a moment.")
+        }
+        busy = true
+        defer { busy = false }
+        do {
+            for sequence in Set(destination.sequences).sorted() {
+                _ = try await bridge.execute(settings: settings, command: ["inbox", "update", "--sequence", String(sequence),
+                    "--feed-id", destination.feedID, "--action", "snooze", "--hours", "1"], timeout: 15)
+            }
+            status = try AgentStatus.decode(await bridge.execute(settings: settings, command: ["status"], timeout: 15))
+            if inboxPage != nil { await reloadInboxPage() }
+        } catch {
+            if (error as? BridgeError)?.requiresSignIn == true { recordFailure(error) }
+            throw error
+        }
     }
 
     private func reloadInboxPage() async {

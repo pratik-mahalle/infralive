@@ -2,7 +2,7 @@
   <img src="docs/assets/cloudwake.svg" width="112" height="112" alt="Cloudwake logo">
 </p>
 <h1 align="center">Cloudwake</h1>
-<p align="center"><strong>Version 1.1.1 · MIT licensed</strong></p>
+<p align="center"><strong>Version 1.2.0 · MIT licensed</strong></p>
 <p align="center"><strong>Know what your AWS is costing. Catch what it leaves running.</strong></p>
 <p align="center">A native Mac menu bar app for AWS spending, resource activity, and savings—with optional monitoring that stays awake in AWS.</p>
 <p align="center">
@@ -36,13 +36,15 @@ control; Cloudwake does not stop, resize, or delete monitored resources.
 | **Overview** | Month-to-date charges, credits and net balance, a monthly forecast, daily spending, and cost increase alerts. |
 | **Changes** | Resource creation, update, and deletion activity from CloudTrail, with the AWS identity behind each event. |
 | **Savings** | AWS recommendations with estimated savings, investigation priorities, and repeated unused-resource observations. |
-| **Inbox** | Persistent alerts you can review, reopen, and snooze. Optional native Mac notification banners. |
+| **Inbox** | Persistent alerts you can review, reopen, and snooze. A cloud companion while using the app; native Mac banners in the background. |
 | **Always-on monitoring** | A private collector in your AWS account that keeps checking while your Mac sleeps or the app is closed. |
 
 **v1.1 scope:** multiple AWS accounts with independent connections and an account switcher, AWS only. The Python collector can run locally or in
 AWS; the desktop app requires macOS. GCP, Azure, organization-wide reporting, and weekly email
 are not implemented. The optional local SES integration supports daily reports and alerts;
 the always-on deployment keeps email disabled.
+
+<p align="center"><img src="docs/assets/companion.png" width="420" alt="Cloudwake companion with an illustrative unused-resource alert and Review and one-hour snooze actions"></p>
 
 ## Download for Mac
 

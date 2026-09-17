@@ -30,9 +30,12 @@ struct QuietEmptyState: View {
     let detail: String
     let symbol: String
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: symbol).font(.system(size: 13, weight: .medium))
-            Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: 12) {
+            CloudMascot(size: 48, sleepy: true)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title).font(.system(size: 13, weight: .semibold, design: .rounded))
+                Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
         }.padding(.vertical, 16).frame(maxWidth: .infinity, alignment: .leading)
     }
 }

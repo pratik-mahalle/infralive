@@ -3,12 +3,17 @@ import SwiftUI
 struct AccountPicker: View {
     @ObservedObject var workspace: AccountWorkspace
     var body: some View {
-        Picker("AWS account", selection: Binding(get: { workspace.selectedID }, set: { workspace.select($0) })) {
-            ForEach(workspace.accounts) { account in
-                Text(account.label + (workspace.model(for: account.id)?.needsSignIn == true ? " · Sign-in required" : ""))
-                    .tag(account.id)
+        HStack(spacing: 8) {
+            Image(systemName: "server.rack").foregroundStyle(.secondary).accessibilityHidden(true)
+            Picker("AWS account", selection: Binding(get: { workspace.selectedID }, set: { workspace.select($0) })) {
+                ForEach(workspace.accounts) { account in
+                    Text(account.label + (workspace.model(for: account.id)?.needsSignIn == true ? " · Sign-in required" : ""))
+                        .tag(account.id)
+                }
             }
-        }
+            .labelsHidden().pickerStyle(.menu).frame(maxWidth: .infinity)
+        }.padding(.horizontal, 10).padding(.vertical, 6)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
         .disabled(workspace.isConfiguring)
         .help("Switch accounts. Other accounts keep monitoring.")
     }
@@ -57,6 +62,7 @@ struct AccountSettings: View {
             if let error = workspace.storageError { Text(error).font(.caption).foregroundStyle(.red) }
         }
         .onAppear { name = workspace.accounts.first(where: { $0.id == workspace.selectedID })?.name ?? "" }
+        .onChange(of: workspace.selectedID) { id in name = workspace.accounts.first(where: { $0.id == id })?.name ?? "" }
         .alert("Remove this account from Cloudwake?", isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } })) {
             Button("Cancel", role: .cancel) { removal = nil }
             Button("Remove account", role: .destructive) {

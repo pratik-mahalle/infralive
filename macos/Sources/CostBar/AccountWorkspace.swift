@@ -24,6 +24,7 @@ final class AccountWorkspace: ObservableObject {
     @Published private(set) var accounts: [SavedAccount] = []
     @Published private(set) var selectedID = ""
     @Published private(set) var storageError: String?
+    @Published private(set) var alertToReview: AlertDestination?
     private var models: [String: AgentModel] = [:]
     private var subscriptions: [String: Set<AnyCancellable>] = [:]
     private let defaults: UserDefaults
@@ -62,6 +63,13 @@ final class AccountWorkspace: ObservableObject {
         }
         if !accounts.contains(where: { $0.id == selectedID }) { selectedID = accounts[0].id }
         for account in accounts { attach(account) }
+        notifier.companion.review = { [weak self] destination in self?.reviewAlert(destination) }
+        notifier.companion.snooze = { [weak self] destination in
+            guard let model = self?.models[destination.connectionID] else {
+                throw BridgeError.message("This account was removed. Reconnect it to manage its alerts.")
+            }
+            try await model.snoozeNotification(destination)
+        }
         persist()
     }
 
@@ -70,6 +78,11 @@ final class AccountWorkspace: ObservableObject {
     var needsConnection: Bool { selectedModel.awaitingConnection }
     var isConfiguring: Bool { models.values.contains(where: \.configuring) }
     func model(for id: String) -> AgentModel? { models[id] }
+
+    func reviewAlert(_ destination: AlertDestination) {
+        guard destination.valid else { return }
+        alertToReview = destination
+    }
 
     func select(_ id: String) {
         guard !isConfiguring, models[id] != nil else { return }
@@ -160,13 +173,17 @@ final class AccountWorkspace: ObservableObject {
         persist()
     }
 
-    func shutdown() { models.values.forEach { $0.shutdown() } }
+    func shutdown() {
+        notifier.companion.clear()
+        models.values.forEach { $0.shutdown() }
+    }
 
     private func attach(_ entry: SavedAccount) {
         let model = AgentModel(start: start, bridge: makeBridge(), initialSettings: entry.settings,
                                monitoringRequested: entry.monitoringRequested, notifier: notifier,
                                awaitingConnection: entry.needsConnection == true)
         model.accountLabel = notificationLabel(entry)
+        model.connectionID = entry.id
         models[entry.id] = model
         var tokens = Set<AnyCancellable>()
         model.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &tokens)

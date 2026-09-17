@@ -2,6 +2,7 @@ import CryptoKit
 import Foundation
 import UserNotifications
 import Combine
+import AppKit
 
 struct DesktopAlert: Decodable {
     let sequence: Int
@@ -52,9 +53,24 @@ final class DesktopNotifier: NSObject, ObservableObject, UNUserNotificationCente
     @Published private(set) var enabled = UserDefaults.standard.bool(forKey: "CostBar.desktop.enabled")
     @Published private(set) var permission = "Not enabled"
     @Published private(set) var lastError: String?
+    @Published var companionEnabled = UserDefaults.standard.object(forKey: "Cloudwake.companion.enabled") as? Bool ?? true {
+        didSet {
+            defaults.set(companionEnabled, forKey: "Cloudwake.companion.enabled")
+            if !companionEnabled { companion.clear() }
+        }
+    }
+    let companion = CompanionPresenter()
     private let defaults = UserDefaults.standard
     // Do not instantiate Notification Center in unsigned test / render executables.
     private var center: UNUserNotificationCenter { UNUserNotificationCenter.current() }
+
+    override init() {
+        super.init()
+        // Install before async account loading so a notification click at launch is retained.
+        if Bundle.main.bundleIdentifier == "dev.aws-cost-agent.CostBar" && !CommandLine.arguments.contains("--render") {
+            center.delegate = self
+        }
+    }
 
     func checkPermission() async {
         guard Bundle.main.bundleIdentifier == "dev.aws-cost-agent.CostBar" else { return }
@@ -86,6 +102,7 @@ final class DesktopNotifier: NSObject, ObservableObject, UNUserNotificationCente
         enabled = false
         defaults.set(false, forKey: "CostBar.desktop.enabled")
         permission = "Paused"
+        companion.clear()
     }
 
     func namespace(_ status: AgentStatus) -> String {
@@ -103,7 +120,7 @@ final class DesktopNotifier: NSObject, ObservableObject, UNUserNotificationCente
         return defaults.integer(forKey: key)
     }
 
-    func publish(_ page: AlertPage, status: AgentStatus, accountLabel: String? = nil) async throws {
+    func publish(_ page: AlertPage, status: AgentStatus, accountLabel: String? = nil, connectionID: String? = nil) async throws {
         guard enabled, !page.alerts.isEmpty else { return }
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
@@ -113,9 +130,16 @@ final class DesktopNotifier: NSObject, ObservableObject, UNUserNotificationCente
         let namespace = namespace(status)
         for message in NotificationPlan.messages(page.alerts, demo: status.demo) {
             let content = UNMutableNotificationContent()
-            content.title = message.title
+            let grouped = page.alerts.count > 3
+            let kind = page.alerts.first(where: { $0.sequence == message.sequence })?.kind ?? "alert"
+            content.title = (status.demo ? "[Demo] " : "") + CompanionNotice.heading(kind: kind, count: grouped ? page.alerts.count : 1)
             content.subtitle = accountLabel ?? status.snapshot.map { "AWS account " + $0.accountId } ?? ""
-            content.body = message.body
+            content.body = grouped ? message.body : String(message.title.prefix(180))
+            if let connectionID, let feedID = status.notificationFeedId {
+                let destination = AlertDestination(connectionID: connectionID, feedID: feedID,
+                    sequences: grouped ? page.alerts.map(\.sequence) : [message.sequence])
+                content.userInfo["destination"] = try JSONEncoder().encode(destination).base64EncodedString()
+            }
             content.sound = .default
             content.threadIdentifier = namespace
             let request = UNNotificationRequest(identifier: "\(namespace).\(message.sequence)", content: content, trigger: nil)
@@ -127,6 +151,33 @@ final class DesktopNotifier: NSObject, ObservableObject, UNUserNotificationCente
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
         willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        completionHandler([.banner, .list, .sound])
+        Task { @MainActor in
+            if self.enabled && self.companionEnabled && NSApp.isActive,
+               let notice = self.notice(from: notification) {
+                self.companion.show(notice)
+                completionHandler([.list, .sound])
+            } else { completionHandler([.banner, .list, .sound]) }
+        }
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        Task { @MainActor in
+            defer { completionHandler() }
+            guard response.actionIdentifier == UNNotificationDefaultActionIdentifier,
+                  let notice = self.notice(from: response.notification), let destination = notice.destination else { return }
+            NSApp.activate(ignoringOtherApps: true)
+            if self.companionEnabled { self.companion.show(notice) }
+            else { self.companion.review?(destination) }
+        }
+    }
+
+    private func notice(from notification: UNNotification) -> CompanionNotice? {
+        let content = notification.request.content
+        guard let encoded = content.userInfo["destination"] as? String,
+              let data = Data(base64Encoded: encoded),
+              let destination = try? JSONDecoder().decode(AlertDestination.self, from: data), destination.valid else { return nil }
+        return CompanionNotice(id: notification.request.identifier, heading: content.title, detail: content.body,
+                               account: content.subtitle, destination: destination)
     }
 }

@@ -8,10 +8,15 @@ struct SpendingOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            summary
-            if !totals.isEmpty { dailySpend }
+            VStack(alignment: .leading, spacing: 18) {
+                summary
+                if !totals.isEmpty {
+                    Divider().opacity(0.5)
+                    dailySpend
+                }
+            }.modifier(CloudCard())
             if !snapshot.analysis.anomalies.isEmpty || !(snapshot.idleAlerts?.isEmpty ?? true) {
-                alerts
+                alerts.modifier(CloudCard())
             }
             VStack(alignment: .leading, spacing: 6) {
                 PanelHeading(title: "By service", detail: "Month to date")
@@ -19,7 +24,7 @@ struct SpendingOverview: View {
                     ServiceSpendRow(service: service, currencyCode: snapshot.analysis.currency,
                                     maximum: snapshot.analysis.topServices.map(\.value).max() ?? 1)
                 }
-            }
+            }.modifier(CloudCard())
             DisclosureGroup("Billing details") {
                 VStack(alignment: .leading, spacing: 7) {
                     Text("AWS Cost Explorer · \(snapshot.analysis.costMetric)")

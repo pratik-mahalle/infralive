@@ -84,7 +84,7 @@ struct ConnectionPanel: View {
             Picker("Connection method", selection: $useCredentials) {
                 Text("AWS profile").tag(false)
                 Text("Paste credentials").tag(true)
-            }.pickerStyle(.segmented)
+            }.pickerStyle(.segmented).labelsHidden()
             if useCredentials {
                 CredentialEntry(draft: $credentialDraft)
             } else if profiles.isEmpty {
@@ -167,7 +167,7 @@ struct ConnectionPanel: View {
                         Spacer(minLength: 0)
                     }
                 }
-                Text("Connecting saves local settings. Email stays in preview mode. Enable Mac notifications below for desktop alerts.")
+                Text("Connecting saves this account on your Mac. Enable Mac notifications in Settings for desktop alerts.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

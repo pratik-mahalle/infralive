@@ -54,9 +54,10 @@ enum CostBarLauncher {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             review = try decoder.decode(ConnectionReview.self, from: Data(contentsOf: URL(fileURLWithPath: args[flag + 1])))
         }
-        let view = previewView(model: model, tab: tab, settings: settings, review: review).environment(\.colorScheme, dark ? .dark : .light)
+        let bubble = args.contains("--bubble")
+        let view = previewView(model: model, tab: tab, settings: settings, review: review, bubble: bubble).environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: view)
-        let bounds = NSRect(x: 0, y: 0, width: settings ? 550 : MenuPanel.width, height: settings ? 720 : MenuPanel.height)
+        let bounds = NSRect(x: 0, y: 0, width: bubble ? 420 : (settings ? 550 : MenuPanel.width), height: bubble ? 280 : (settings ? (onboarding ? 580 : 720) : (onboarding ? min(520, MenuPanel.height) : MenuPanel.height)))
         let window = NSWindow(contentRect: bounds,
                               styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = host
@@ -75,8 +76,13 @@ enum CostBarLauncher {
     }
 
     @MainActor @ViewBuilder
-    static func previewView(model: AgentModel, tab: PanelTab, settings: Bool, review: ConnectionReview?) -> some View {
-        if settings { SettingsPanel(model: model, previewReview: review) }
+    static func previewView(model: AgentModel, tab: PanelTab, settings: Bool, review: ConnectionReview?, bubble: Bool) -> some View {
+        if bubble {
+            CompanionBubble(notice: CompanionNotice(id: "render", heading: CompanionNotice.preview.heading,
+                detail: CompanionNotice.preview.detail, account: "Preview · Production · 123456789012",
+                destination: AlertDestination(connectionID: "preview", feedID: "preview", sequences: [1])), review: {}, later: {}, dismiss: {})
+        }
+        else if settings { SettingsPanel(model: model, previewReview: review) }
         else { MenuPanel(model: model, initialTab: tab) }
     }
 }
@@ -105,6 +111,11 @@ struct CostBarApp: App {
             AskPanel(model: workspace.selectedModel).id(workspace.selectedID)
         }
         .defaultSize(width: 640, height: 480)
+
+        Window("Cloudwake Inbox", id: "alerts") {
+            AlertReviewWindow(workspace: workspace)
+        }
+        .defaultSize(width: 440, height: 620)
     }
 }
 
@@ -126,6 +137,34 @@ private struct WorkspaceMenuLabel: View {
                 openWindow(id: "settings")
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }
+        }
+        .onReceive(workspace.$alertToReview) { destination in
+            guard destination != nil else { return }
+            openWindow(id: "alerts")
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
+    }
+}
+
+private struct AlertReviewWindow: View {
+    @ObservedObject var workspace: AccountWorkspace
+    var body: some View {
+        if let target = workspace.alertToReview, let model = workspace.model(for: target.connectionID) {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 10) {
+                    CloudMascot(size: 44)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Let's take a look.").font(.headline)
+                        Text(model.accountLabel ?? "AWS account").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }.padding(.horizontal, 20).padding(.top, 14)
+                InboxView(model: model, requestedSequence: target.sequences.count == 1 ? target.sequences.first : nil)
+                    .id(target.connectionID + target.feedID + target.sequences.description)
+            }.frame(minWidth: 420, minHeight: 520).background { MacPanelBackground() }
+        } else {
+            QuietEmptyState(title: "This account isn't available", detail: "Open Cloudwake settings to connect the account again.", symbol: "cloud")
+                .padding(24).frame(width: 420, height: 260)
         }
     }
 }

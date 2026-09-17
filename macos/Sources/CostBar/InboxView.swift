@@ -4,9 +4,12 @@ import SwiftUI
 struct InboxView: View {
     @ObservedObject var model: AgentModel
     @State private var selected: InboxAlert?
+    var requestedSequence: Int? = nil
+    @State private var didFocusRequest = false
 
-    init(model: AgentModel, selectedAlert: InboxAlert? = nil) {
+    init(model: AgentModel, selectedAlert: InboxAlert? = nil, requestedSequence: Int? = nil) {
         self.model = model
+        self.requestedSequence = requestedSequence
         _selected = State(initialValue: selectedAlert)
     }
 
@@ -22,13 +25,24 @@ struct InboxView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .task(id: model.status?.notificationFeedId) { await model.loadInbox() }
+        .task(id: model.status?.notificationFeedId) {
+            await model.loadInbox(filter: requestedSequence == nil ? nil : .open)
+            focusRequest()
+        }
+        .onChange(of: model.inboxPage?.alerts.map(\.id)) { _ in focusRequest() }
         .onChange(of: model.status?.notificationFeedId) { _ in selected = nil }
         .onChange(of: model.busy) { busy in
             if !busy && model.inboxPage == nil && model.inboxError == nil && !model.isPreview {
                 Task { await model.loadInbox() }
             }
         }
+    }
+
+    private func focusRequest() {
+        guard !didFocusRequest, let requestedSequence,
+              let alert = model.inboxPage?.alerts.first(where: { $0.sequence == requestedSequence }) else { return }
+        selected = alert
+        didFocusRequest = true
     }
 
     private var list: some View {

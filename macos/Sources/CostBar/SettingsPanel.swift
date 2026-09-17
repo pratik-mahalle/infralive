@@ -18,7 +18,7 @@ struct SettingsPanel: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 12) {
-                    BrandMark()
+                    CloudMascot(size: 54)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(model.awaitingConnection ? "Welcome to Cloudwake" : "Cloudwake Settings").font(.title2).fontWeight(.semibold)
                         Text(model.awaitingConnection ? "Connect AWS to see your spending and resource activity." : "AWS connection and notifications.").foregroundStyle(.secondary)
@@ -61,7 +61,7 @@ struct SettingsPanel: View {
                         }.padding(.top, 12)
                     }
                     Divider()
-                    Text(model.usesCloudMonitoring ? "The menu reads private cloud state every 30 seconds. Mac banners appear while this app is open; the cloud inbox keeps collecting when it is closed." : "The menu reads local data every 30 seconds. Refresh collects AWS costs. Start runs the worker and its configured email delivery while this app is open. Monitoring pauses when your Mac sleeps.")
+                    Text(model.usesCloudMonitoring ? "The menu checks for updates every 30 seconds. Desktop alerts appear while this app is open; your AWS monitor keeps collecting when it is closed." : "The menu checks for updates every 30 seconds. Monitoring pauses when your Mac sleeps. Refresh checks for the latest available AWS billing data.")
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     if model.ownsWorker {
                         Label("Stop the worker before changing settings.", systemImage: "info.circle")
@@ -77,7 +77,7 @@ struct SettingsPanel: View {
                     }
                 }
             }.padding(26).frame(width: 550)
-        }.frame(width: 550, height: min(720, (NSScreen.main?.visibleFrame.height ?? 800) - 80))
+        }.frame(width: 550, height: min(model.awaitingConnection ? 580 : 720, (NSScreen.main?.visibleFrame.height ?? 800) - 80))
             .background { MacPanelBackground() }
             .onChange(of: model.settings) { draft = $0 }
     }
@@ -133,6 +133,13 @@ private struct NotificationSettings: View {
                 }
             }
             Text("New resource creations, spending increases and idle-resource costs. macOS will ask for permission. Alerts begin from now; deployment bursts are grouped.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Toggle("Cloud companion", isOn: $notifier.companionEnabled).toggleStyle(.switch).controlSize(.small)
+                Spacer()
+                Button("Preview") { notifier.companion.show(.preview) }.controlSize(.small)
+            }.padding(.top, 8)
+            Text("A friendly bubble while you're using Cloudwake or when you click a notification. Background alerts use macOS banners and respect Focus. “In 1 hour” snoozes the alert in its account's inbox.")
                 .font(.caption).foregroundStyle(.secondary)
             if notifier.permission.contains("Blocked") {
                 Text("Allow Cloudwake in System Settings → Notifications.").font(.caption).foregroundStyle(.orange)

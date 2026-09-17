@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 — 2026-09-18
+
+- Introduce a cloud mascot and compact companion alerts with account-specific Review and one-hour inbox snooze actions.
+- Keep native macOS banners for background delivery; show companion bubbles during foreground use or on a notification click.
+- Add a companion preference and a safe preview in notification settings.
+- Refresh the menu with clearer navigation, grouped spending cards, a quieter footer, and compact account setup.
+- Keep notification actions tied to the original account and reject snoozes from a replaced inbox.
+
 ## 1.1.1 — 2026-09-17
 
 - Simplify Overview to AWS service costs; remove Project and Owner views and their extra billing-tag API requests.
