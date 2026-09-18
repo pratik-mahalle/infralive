@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2 — 2026-09-18
+
+- Redesign the Mac panel with compact account controls, bottom navigation, and a smaller spending card with an inline daily chart.
+- Refine activity, savings, service, and inbox rows for light and dark macOS appearances.
+- Keep credits, net balance, forecasts, and detailed daily spending available; retain cloud companion alerts and multi-account monitoring.
+- Move CI to Codemagic and remove the GitHub Actions workflow.
+
 ## 1.2.1 — 2026-09-18
 
 - Move public downloads and setup documentation to a release-only repository; application source stays private.

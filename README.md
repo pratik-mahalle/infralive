@@ -2,11 +2,11 @@
   <img src="docs/assets/cloudwake.svg" width="112" height="112" alt="Cloudwake logo">
 </p>
 <h1 align="center">Cloudwake</h1>
-<p align="center"><strong>Version 1.2.1 · Private source</strong></p>
+<p align="center"><strong>Version 1.2.2 · Private source</strong></p>
 <p align="center"><strong>Know what your AWS is costing. Catch what it leaves running.</strong></p>
 <p align="center">A native Mac menu bar app for AWS spending, resource activity, and savings—with optional monitoring that stays awake in AWS.</p>
 <p align="center">
-  <a href="https://github.com/pratik-mahalle/infralive/actions/workflows/check.yml"><img src="https://github.com/pratik-mahalle/infralive/actions/workflows/check.yml/badge.svg" alt="Build and tests"></a>
+  <a href="https://codemagic.io/app/6aacceeacc0371346ff284ae">Builds on Codemagic</a>
   <img src="https://img.shields.io/badge/macOS-13%2B-0f1d28" alt="macOS 13 or later">
   <img src="https://img.shields.io/badge/Python-3.11%2B-0f1d28" alt="Python 3.11 or later">
   <img src="https://img.shields.io/badge/AWS-only-71efc5" alt="AWS only">
@@ -199,8 +199,8 @@ bash macos/build.sh
 Python tests use fixtures and stubs; the Swift tests use synthetic fixtures. The
 [Codemagic workflow](codemagic.yaml) runs Python 3.12 lint/tests, the offline demo,
 Swift tests, and the Mac build on an M2 machine with Xcode 16.4. It has a 30-minute
-timeout and cancels superseded push builds. The existing GitHub Actions workflow
-also covers Python 3.11–3.13 on Linux when GitHub billing permits it.
+timeout and cancels superseded push builds. Codemagic is the CI provider; GitHub Actions
+is not used.
 
 In a personal Codemagic account, add the private `pratik-mahalle/infralive` repository,
 then choose **Start new build → main → Cloudwake checks and Mac build**. For automatic
