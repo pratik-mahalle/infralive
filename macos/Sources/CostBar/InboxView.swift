@@ -16,7 +16,7 @@ struct InboxView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let error = model.inboxError {
-                InlineNotice(text: error, warning: true).padding(.horizontal, 20)
+                InlineNotice(text: error, warning: true).padding(.horizontal, 16)
             }
             if let alert = selected {
                 detail(alert)
@@ -58,9 +58,9 @@ struct InboxView: View {
                     Text("\(count(page.counts)) \(model.inboxFilter.title.lowercased())")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-            }.padding(.horizontal, 20)
+            }.padding(.horizontal, 16)
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 7) {
                     if let page = model.inboxPage, page.filter == model.inboxFilter {
                         if page.alerts.isEmpty {
                             QuietEmptyState(title: emptyTitle, detail: emptyDetail, symbol: "tray")
@@ -85,13 +85,12 @@ struct InboxView: View {
                                         }
                                     }
                                 }
-                            Divider()
                         }
                     } else {
                         if model.busy { ProgressView().controlSize(.small).padding(.vertical, 24) }
                         else { Button("Load alerts") { Task { await model.loadInbox() } }.padding(.vertical, 24) }
                     }
-                }.padding(.horizontal, 20).padding(.bottom, 12)
+                }.padding(.horizontal, 16).padding(.bottom, 12)
             }.id(model.inboxFilter.rawValue + String(model.inboxCursors.last ?? 0))
             if model.inboxCursors.count > 1 || model.inboxPage?.nextBefore != nil {
                 HStack {
@@ -100,7 +99,7 @@ struct InboxView: View {
                     Text("Page \(model.inboxCursors.count)").font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button("Older") { Task { await model.loadInbox(direction: 1) } }.disabled(model.busy || model.inboxPage?.nextBefore == nil)
-                }.controlSize(.small).padding(.horizontal, 20).padding(.bottom, 10)
+                }.controlSize(.small).padding(.horizontal, 16).padding(.bottom, 10)
             }
         }
     }
@@ -116,7 +115,7 @@ struct InboxView: View {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(alert.title + "\n\n" + alert.body, forType: .string)
                 } label: { Image(systemName: "doc.on.doc") }.buttonStyle(.plain).help("Copy alert details").accessibilityLabel("Copy alert details")
-            }.font(.caption).padding(.horizontal, 20)
+            }.font(.caption).padding(.horizontal, 16)
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(alert.title).font(.system(size: 15, weight: .semibold)).textSelection(.enabled)
@@ -136,7 +135,7 @@ struct InboxView: View {
                     Divider()
                     Text(alert.body).font(.system(size: 12)).textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true)
-                }.padding(.horizontal, 20).padding(.bottom, 12)
+                }.padding(.horizontal, 16).padding(.bottom, 12)
             }
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -160,7 +159,7 @@ struct InboxView: View {
                 }.controlSize(.small).disabled(model.busy)
                 Text("Snooze returns this alert to the inbox. Delivery settings stay unchanged.")
                     .font(.system(size: 10)).foregroundStyle(.secondary)
-            }.padding(.horizontal, 20).padding(.bottom, 14)
+            }.padding(.horizontal, 16).padding(.bottom, 14)
         }
     }
 
@@ -215,6 +214,6 @@ private struct InboxRow: View {
                 }
             }
             Image(systemName: "chevron.right").font(.system(size: 9)).foregroundStyle(.tertiary).padding(.top, 20)
-        }.padding(.vertical, 12).contentShape(Rectangle())
+        }.modifier(CloudRow()).contentShape(Rectangle())
     }
 }

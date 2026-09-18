@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://codemagic.io/codemagic-schema.json
+workflows:
+  cloudwake-check:
+    name: Cloudwake checks and Mac build
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      xcode: "16.4"
+      vars:
+        AWS_EC2_METADATA_DISABLED: "true"
+        PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Prepare Python environment
+        script: |
+          set -euo pipefail
+          python3 -c 'import sys; assert sys.version_info[:2] == (3, 12), sys.version'
+          python3 -m venv .venv
+          .venv/bin/python -m pip install -r requirements.lock -e .
+          mkdir -p build/ci
+      - name: Python lint and tests
+        script: |
+          set -euo pipefail
+          .venv/bin/ruff check src scripts tests
+          .venv/bin/ruff format --check src scripts tests
+          .venv/bin/python -m pytest -q --junitxml=build/ci/python-tests.xml
+          .venv/bin/aws-cost-agent demo
+        test_report: build/ci/python-tests.xml
+      - name: Swift tests
+        script: |
+          set -euo pipefail
+          bash macos/test.sh 2>&1 | tee build/ci/swift-tests.log
+      - name: Build and verify Mac app
+        script: |
+          set -euo pipefail
+          bash macos/build.sh 2>&1 | tee build/ci/macos-build.log
+          codesign --verify --deep --strict dist/Cloudwake.app
+    # The development app depends on the checkout's Python environment. Only
+    # publish test logs here; standalone releases use scripts/package_macos.py.
+    artifacts:
+      - build/ci/*.xml
+      - build/ci/*.log

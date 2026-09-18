@@ -56,11 +56,22 @@ private struct CloudBody: Shape {
     }
 }
 
+/// The featured surface sits above the quieter list rows and native vibrancy.
 struct CloudCard: ViewModifier {
     @Environment(\.colorScheme) private var scheme
     func body(content: Content) -> some View {
-        content.padding(14)
-            .background(scheme == .dark ? Color.white.opacity(0.045) : Color.white.opacity(0.48), in: RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.055), lineWidth: 1))
+        content.padding(16)
+            .background(scheme == .dark ? Color.white.opacity(0.09) : Color.white.opacity(0.88), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.white.opacity(scheme == .dark ? 0.08 : 0.7), lineWidth: 0.5))
+            .shadow(color: .black.opacity(scheme == .dark ? 0.08 : 0.035), radius: 6, y: 2)
+    }
+}
+
+struct CloudRow: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Content) -> some View {
+        content.padding(.horizontal, 12).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(scheme == .dark ? Color.white.opacity(0.045) : Color.white.opacity(0.35), in: RoundedRectangle(cornerRadius: 9))
     }
 }

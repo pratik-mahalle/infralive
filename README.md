@@ -196,9 +196,21 @@ bash macos/test.sh
 bash macos/build.sh
 ```
 
-Python tests use fixtures and stubs; the Swift tests use synthetic fixtures. CI runs Python
-checks on Linux and builds and tests the native app on macOS. Tests do not send email or require
-an AWS account. To validate infrastructure templates, install `pip install -e '.[infra]'` and run
+Python tests use fixtures and stubs; the Swift tests use synthetic fixtures. The
+[Codemagic workflow](codemagic.yaml) runs Python 3.12 lint/tests, the offline demo,
+Swift tests, and the Mac build on an M2 machine with Xcode 16.4. It has a 30-minute
+timeout and cancels superseded push builds. The existing GitHub Actions workflow
+also covers Python 3.11–3.13 on Linux when GitHub billing permits it.
+
+In a personal Codemagic account, add the private `pratik-mahalle/infralive` repository,
+then choose **Start new build → main → Cloudwake checks and Mac build**. For automatic
+builds on pushes to `main`, enable the repository webhook in the app's Codemagic settings.
+No AWS credentials, Apple certificates, or publishing tokens are needed. This workflow
+only saves test reports and build logs; it does not publish a release or change Homebrew.
+The development `.app` depends on its checkout and is not a standalone download.
+
+Tests do not send email or require an AWS account. To validate infrastructure templates,
+install `pip install -e '.[infra]'` and run
 `cfn-lint infra/observer-role.json infra/events.json infra/cloud-storage.json infra/cloud-monitor.json`.
 
 ```text

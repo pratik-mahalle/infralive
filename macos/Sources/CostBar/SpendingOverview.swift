@@ -5,28 +5,33 @@ struct SpendingOverview: View {
     @Environment(\.colorScheme) private var colorScheme
     let snapshot: Snapshot
     let totals: [DailyTotal]
+    let showSavings: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 18) {
-                summary
-                if !totals.isEmpty {
-                    Divider().opacity(0.5)
-                    dailySpend
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("This month").font(.system(size: 13, weight: .medium))
+                    Spacer()
+                    Text(snapshot.isStale ? "Needs refresh" : "Through \(billingDate)")
+                        .font(.caption).foregroundStyle(snapshot.isStale ? Color.orange : Color.secondary)
                 }
-            }.modifier(CloudCard())
-            if !snapshot.analysis.anomalies.isEmpty || !(snapshot.idleAlerts?.isEmpty ?? true) {
-                alerts.modifier(CloudCard())
+                summary.modifier(CloudCard())
             }
-            VStack(alignment: .leading, spacing: 6) {
+            if !snapshot.analysis.anomalies.isEmpty || !(snapshot.idleAlerts?.isEmpty ?? true) {
+                alerts
+            }
+            VStack(alignment: .leading, spacing: 7) {
                 PanelHeading(title: "By service", detail: "Month to date")
                 ForEach(snapshot.analysis.topServices.prefix(6)) { service in
                     ServiceSpendRow(service: service, currencyCode: snapshot.analysis.currency,
                                     maximum: snapshot.analysis.topServices.map(\.value).max() ?? 1)
+                        .modifier(CloudRow())
                 }
-            }.modifier(CloudCard())
+            }
             DisclosureGroup("Billing details") {
                 VStack(alignment: .leading, spacing: 7) {
+                    if !totals.isEmpty { dailySpend.padding(.bottom, 6) }
                     Text("AWS Cost Explorer · \(snapshot.analysis.costMetric)")
                     Text("Data is delayed and excludes today (UTC). \(snapshot.analysis.billingProvisional ? "Current charges are provisional." : "")")
                     Text(snapshot.analysis.anomalyCoverage == "available" ? "Spending alerts compare against three matching weekdays." : "Collecting enough history to detect spending changes.")
@@ -38,39 +43,54 @@ struct SpendingOverview: View {
     }
 
     private var summary: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            HStack {
-                Text("Month to date").font(.system(size: 12, weight: .medium))
-                Spacer()
-                Text(snapshot.isStale ? "Needs refresh" : "Through \(billingDate)")
-                    .font(.caption).foregroundStyle(snapshot.isStale ? Color.orange : Color.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(currency(snapshot.analysis.displayedSpend, code: snapshot.analysis.currency))
+                        .font(.system(size: 29, weight: .semibold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.55)
+                        .accessibilityLabel("Month to date")
+                        .accessibilityValue(currency(snapshot.analysis.displayedSpend, code: snapshot.analysis.currency) + " " + snapshot.analysis.currency)
+                    Text(snapshot.analysis.currency + " · " + (snapshot.analysis.spendBeforeCredits == nil ? "After credits" : "Before credits & refunds"))
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }.frame(maxWidth: .infinity, alignment: .leading).layoutPriority(1)
+                if !totals.isEmpty {
+                    VStack(spacing: 5) {
+                        Chart(totals) { day in
+                            BarMark(x: .value("Day", day.day), y: .value("Spend", day.value))
+                                .foregroundStyle(day.id == totals.last?.id ? Color.accentColor : Color.accentColor.opacity(0.22))
+                                .cornerRadius(1)
+                                .accessibilityLabel(day.day)
+                                .accessibilityValue(currency(day.amount, code: snapshot.analysis.currency))
+                        }.chartXAxis(.hidden).chartYAxis(.hidden).frame(height: 35)
+                        Text("Last \(totals.count) days").font(.system(size: 9)).foregroundStyle(.secondary)
+                    }.frame(width: 88)
+                }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 7) {
-                Text(currency(snapshot.analysis.displayedSpend, code: snapshot.analysis.currency))
-                    .font(.system(size: 36, weight: .medium)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
-                Text(snapshot.analysis.currency).font(.caption).foregroundStyle(.secondary)
-                Spacer()
-            }
-            Text(snapshot.analysis.spendBeforeCredits == nil ? "After credits" : "Before credits & refunds")
-                .font(.caption).foregroundStyle(.secondary)
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Month forecast").font(.caption).foregroundStyle(.secondary)
+            Divider().opacity(0.5)
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Month forecast").font(.system(size: 10)).foregroundStyle(.secondary)
                     Text(snapshot.forecast.map { currency($0.monthTotal, code: snapshot.analysis.currency) } ?? "Unavailable")
                         .font(.system(size: 13, weight: .medium)).monospacedDigit()
                 }
                 Spacer()
-                if let credits = snapshot.analysis.credits {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("Credits \(currency(credits, code: snapshot.analysis.currency))").font(.caption).foregroundStyle(.secondary)
-                        Text("Net \(currency(snapshot.analysis.monthToDate, code: snapshot.analysis.currency))")
-                            .font(.system(size: 13, weight: .medium)).monospacedDigit()
-                        if let refunds = snapshot.analysis.refunds, (Double(refunds) ?? 0) != 0 {
-                            Text("Refunds \(currency(refunds, code: snapshot.analysis.currency))").font(.caption2).foregroundStyle(.secondary)
-                        }
-                    }
+                if !snapshot.recommendations.isEmpty || !(snapshot.idleAlerts?.isEmpty ?? true) {
+                    Button("View savings", action: showSavings).buttonStyle(.borderedProminent).controlSize(.small)
                 }
-            }.padding(.top, 5)
+            }
+            if let credits = snapshot.analysis.credits {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Credits \(currency(credits, code: snapshot.analysis.currency))")
+                    Spacer()
+                    Text("Net \(currency(snapshot.analysis.monthToDate, code: snapshot.analysis.currency))")
+                }.font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+                if let refunds = snapshot.analysis.refunds, (Double(refunds) ?? 0) != 0 {
+                    Text("Refunds \(currency(refunds, code: snapshot.analysis.currency))")
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -99,7 +119,7 @@ struct SpendingOverview: View {
                     }
                 }
             }
-            .frame(height: 64)
+            .frame(height: 48)
             HStack {
                 Text(shortDate(totals.first?.day))
                 Spacer()
@@ -110,7 +130,7 @@ struct SpendingOverview: View {
 
     private var alerts: some View {
         VStack(alignment: .leading, spacing: 10) {
-            PanelHeading(title: "Needs attention", detail: "")
+            PanelHeading(title: "Needs attention", detail: "\(snapshot.analysis.anomalies.count + (snapshot.idleAlerts?.count ?? 0)) to review")
             ForEach(snapshot.analysis.anomalies) { anomaly in
                 DisclosureGroup {
                     Text("\(anomaly.region) · \(anomaly.day)\nAbove the median of three matching weekdays. Cause needs investigation.")
@@ -121,8 +141,8 @@ struct SpendingOverview: View {
                         Text(anomaly.service).lineLimit(1)
                         Spacer()
                         Text("+" + currency(anomaly.increase, code: anomaly.currency)).monospacedDigit()
-                    }.font(.caption)
-                }
+                    }.font(.system(size: 12))
+                }.modifier(CloudRow())
             }
             ForEach(snapshot.idleAlerts ?? []) { idle in
                 DisclosureGroup {
@@ -134,8 +154,8 @@ struct SpendingOverview: View {
                         Text("Idle resource")
                         Spacer()
                         Text("~\(currency(idle.monthlySavings, code: idle.currency))/mo").monospacedDigit()
-                    }.font(.caption)
-                }
+                    }.font(.system(size: 12))
+                }.modifier(CloudRow())
             }
         }
     }
@@ -162,6 +182,6 @@ private struct ServiceSpendRow: View {
                 Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.34 : 0.16))
                     .frame(width: geometry.size.width * max(0, min(1, service.value / max(maximum, 1))))
             }.frame(height: 2).accessibilityHidden(true)
-        }.padding(.vertical, 5).accessibilityElement(children: .combine)
+        }.accessibilityElement(children: .combine)
     }
 }

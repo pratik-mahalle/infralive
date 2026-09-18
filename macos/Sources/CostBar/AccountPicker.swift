@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AccountPicker: View {
     @ObservedObject var workspace: AccountWorkspace
+    var compact = false
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "server.rack").foregroundStyle(.secondary).accessibilityHidden(true)
@@ -12,8 +13,8 @@ struct AccountPicker: View {
                 }
             }
             .labelsHidden().pickerStyle(.menu).frame(maxWidth: .infinity)
-        }.padding(.horizontal, 10).padding(.vertical, 6)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        }.padding(.horizontal, compact ? 0 : 10).padding(.vertical, compact ? 0 : 6)
+        .background(Color.primary.opacity(compact ? 0 : 0.04), in: RoundedRectangle(cornerRadius: 10))
         .disabled(workspace.isConfiguring)
         .help("Switch accounts. Other accounts keep monitoring.")
     }

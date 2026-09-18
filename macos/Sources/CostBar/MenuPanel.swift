@@ -4,8 +4,8 @@ import SwiftUI
 enum PanelTab: String, CaseIterable { case overview = "Overview", changes = "Changes", savings = "Savings", inbox = "Inbox" }
 
 struct MenuPanel: View {
-    static let width: CGFloat = 440
-    static var height: CGFloat { min(700, (NSScreen.main?.visibleFrame.height ?? 800) - 60) }
+    static let width: CGFloat = 390
+    static var height: CGFloat { min(620, (NSScreen.main?.visibleFrame.height ?? 800) - 60) }
     @ObservedObject var model: AgentModel
     var workspace: AccountWorkspace? = nil
     @Environment(\.openWindow) private var openWindow
@@ -32,15 +32,10 @@ struct MenuPanel: View {
                     Spacer()
                     Button("Quit Cloudwake") { NSApplication.shared.terminate(nil) }
                         .controlSize(.small).keyboardShortcut("q")
-                }.padding(.horizontal, 18).padding(.vertical, 12)
+                }.padding(.horizontal, 16).padding(.vertical, 10)
             } else {
-                if let workspace {
-                    AccountPicker(workspace: workspace).font(.caption)
-                        .padding(.horizontal, 18).padding(.bottom, 12)
-                }
                 if model.needsSignIn { reconnectBanner }
                 if model.status != nil {
-                    navigation
                     if tab == .inbox {
                         InboxView(model: model, selectedAlert: model.isPreview && CommandLine.arguments.contains("--inbox-detail") ? model.inboxPage?.alerts.first : nil)
                     } else if let snapshot = model.status?.snapshot {
@@ -48,18 +43,18 @@ struct MenuPanel: View {
                         VStack(alignment: .leading, spacing: 18) {
                             if let error = model.error, !model.needsSignIn { InlineNotice(text: error, warning: true) }
                             switch tab {
-                            case .overview: SpendingOverview(snapshot: snapshot, totals: model.status?.dailyTotals ?? [])
+                            case .overview: SpendingOverview(snapshot: snapshot, totals: model.status?.dailyTotals ?? [], showSavings: { tab = .savings })
                             case .changes: activity
                             case .savings: savings(snapshot)
                             case .inbox: EmptyView()
                             }
-                        }.padding(.horizontal, 20).padding(.bottom, 20)
+                        }.padding(.horizontal, 16).padding(.bottom, 18)
                       }.id(tab)
                     } else {
                         emptyState
                     }
                 } else { emptyState }
-                Divider()
+                if model.status != nil { navigation.padding(.top, 8) }
                 footer
             }
         }
@@ -100,14 +95,13 @@ struct MenuPanel: View {
 
     private var header: some View {
         HStack(spacing: 8) {
-            CloudMascot(size: 38)
-            Text("Cloudwake").font(.system(size: 15, weight: .semibold, design: .rounded))
-            Spacer()
-            if model.settings.demo {
-                Text("Demo").font(.caption).foregroundStyle(.orange)
-            } else if workspace == nil, let snapshot = model.status?.snapshot {
-                Text("AWS · " + snapshot.accountId).font(.system(size: 10, design: .monospaced)).foregroundStyle(.secondary)
-                    .help("Connected AWS account \(snapshot.accountId)").textSelection(.enabled)
+            if let workspace, !model.awaitingConnection {
+                AccountPicker(workspace: workspace, compact: true).font(.system(size: 12, weight: .medium))
+            } else {
+                Label(model.awaitingConnection ? "Cloudwake" : "AWS account", systemImage: "cloud")
+                    .font(.system(size: 12, weight: .medium))
+                Spacer()
+                if model.settings.demo { Text("Demo").font(.caption).foregroundStyle(.secondary) }
             }
             Button {
                 Task {
@@ -122,38 +116,41 @@ struct MenuPanel: View {
                 .accessibilityLabel(refreshLabel).help(refreshLabel)
             Button { showWindow("settings") } label: { Image(systemName: "gearshape").frame(width: 24, height: 24) }
                 .accessibilityLabel("Open Cloudwake settings").help("Settings")
-        }.buttonStyle(.plain).padding(.horizontal, 18).padding(.vertical, 13)
+        }.buttonStyle(.plain).padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     private var navigation: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             ForEach(PanelTab.allCases, id: \.self) { item in
                 Button { tab = item } label: {
-                    VStack(spacing: 5) {
-                        Image(systemName: tabSymbol(item)).font(.system(size: 13, weight: .medium))
-                        Text(item == .inbox && unreadCount > 0 ? "Inbox · \(min(unreadCount, 99))" : item.rawValue)
-                            .font(.system(size: 11, weight: tab == item ? .semibold : .medium))
+                    HStack(spacing: 4) {
+                        Text(item.rawValue)
+                        if item == .inbox && unreadCount > 0 {
+                            Text("\(min(unreadCount, 99))")
+                                .font(.system(size: 9, weight: .semibold)).monospacedDigit()
+                                .padding(.horizontal, 4).padding(.vertical, 1)
+                                .background(Color.accentColor.opacity(0.12), in: Capsule())
+                                .foregroundStyle(Color.accentColor)
+                        }
                     }
-                    .frame(maxWidth: .infinity).frame(height: 48)
+                    .font(.system(size: 11, weight: tab == item ? .semibold : .medium))
+                    .frame(maxWidth: .infinity).frame(height: 29)
                     .foregroundStyle(tab == item ? Color.primary : Color.secondary)
-                    .background(tab == item ? Color.primary.opacity(0.08) : Color.clear, in: RoundedRectangle(cornerRadius: 12))
-                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                    .background {
+                        if tab == item {
+                            RoundedRectangle(cornerRadius: 7).fill(.background.opacity(0.85))
+                                .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
+                        }
+                    }
+                    .contentShape(RoundedRectangle(cornerRadius: 7))
                 }.buttonStyle(.plain).accessibilityLabel(item.rawValue)
+                    .accessibilityValue(item == .inbox ? "\(unreadCount) unread" : "")
                     .accessibilityAddTraits(tab == item ? [.isSelected] : [])
                     .keyboardShortcut(KeyEquivalent(Character(String((PanelTab.allCases.firstIndex(of: item) ?? 0) + 1))), modifiers: .command)
                     .help(item == .inbox ? "Your alerts, saved for later" : item.rawValue)
             }
-        }.padding(4).background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 16))
-            .padding(.horizontal, 18).padding(.bottom, 16)
-    }
-
-    private func tabSymbol(_ tab: PanelTab) -> String {
-        switch tab {
-        case .overview: return "chart.bar.xaxis"
-        case .changes: return "clock.arrow.circlepath"
-        case .savings: return "leaf"
-        case .inbox: return "tray"
-        }
+        }.padding(3).background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 10))
+            .padding(.horizontal, 16)
     }
 
     private var unreadCount: Int { model.inboxPage?.counts.unread ?? model.status?.inboxSummary?.unread ?? 0 }
@@ -186,10 +183,9 @@ struct MenuPanel: View {
             if events.isEmpty {
                 QuietEmptyState(title: "No activity to show", detail: "Refresh to check CloudTrail. Activity is checked every five minutes while monitoring.", symbol: "clock")
             }
-            LazyVStack(spacing: 0) {
+            LazyVStack(spacing: 7) {
                 ForEach(events) { event in
-                    ActivityRow(event: event)
-                    Divider()
+                    ActivityRow(event: event).modifier(CloudRow())
                 }
             }
             Text("CloudTrail API calls · Provisioning status is unverified")
@@ -217,10 +213,9 @@ struct MenuPanel: View {
                     }
                 } else {
                     Text("Estimated monthly savings · May overlap").font(.caption).foregroundStyle(.secondary)
-                    VStack(spacing: 0) {
+                    VStack(spacing: 7) {
                         ForEach(snapshot.recommendations.prefix(20)) { recommendation in
-                            RecommendationRow(recommendation: recommendation)
-                            Divider()
+                            RecommendationRow(recommendation: recommendation).modifier(CloudRow())
                         }
                     }
                 }
@@ -233,10 +228,9 @@ struct MenuPanel: View {
                         Text(monitoring.warnings.isEmpty ? "None found in the latest check." : "Some checks could not complete.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    VStack(spacing: 0) {
+                    VStack(spacing: 7) {
                         ForEach((snapshot.unusedResources ?? []).prefix(20)) { resource in
-                            UnusedResourceRow(resource: resource)
-                            Divider()
+                            UnusedResourceRow(resource: resource).modifier(CloudRow())
                         }
                     }
                     DisclosureGroup("What’s monitored") {
@@ -285,9 +279,10 @@ struct MenuPanel: View {
                 Text(notice).font(.caption2).foregroundStyle(.secondary).lineLimit(2).help(notice)
             }
             HStack(spacing: 6) {
+                Image(systemName: "cloud").foregroundStyle(.secondary).accessibilityHidden(true)
                 Circle().fill(model.needsSignIn ? Color.orange : (model.isMonitoring ? Color.green : Color.secondary.opacity(0.5))).frame(width: 5, height: 5).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(model.needsSignIn ? "AWS sign-in required" : (model.usesCloudMonitoring ? (model.isMonitoring ? "Monitoring in AWS" : "Cloud needs attention") : (model.isMonitoring ? "Monitoring" : "Paused")))
+                    Text(model.needsSignIn ? "Sign-in required" : (model.usesCloudMonitoring ? (model.isMonitoring ? "Monitoring in AWS" : "Cloud needs attention") : (model.isMonitoring ? "Cloudwake · Monitoring" : "Cloudwake · Paused")))
                         .font(.system(size: 11, weight: .medium))
                     if let date = model.status?.snapshot?.collectedDate {
                         Text("\(model.needsSignIn ? "Last data" : "Synced") \(date.formatted(date: .omitted, time: .shortened))")
@@ -312,7 +307,7 @@ struct MenuPanel: View {
                 } label: { Image(systemName: "ellipsis").frame(width: 24, height: 24) }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 24).accessibilityLabel("More options")
             }
-        }.padding(.horizontal, 18).padding(.vertical, 12)
+        }.padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     private func showWindow(_ id: String) {

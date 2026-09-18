@@ -76,7 +76,7 @@ struct ActivityRow: View {
                         if let time = parseTimestamp(event.time) { Text(time.formatted(date: .omitted, time: .shortened)) }
                     }.font(.system(size: 10)).foregroundStyle(.secondary)
                 }
-            }.padding(.vertical, 12)
+            }
         }
     }
 }
@@ -102,7 +102,7 @@ struct RecommendationRow: View {
                 }
                 Text(compactResource(recommendation.resourceId))
                     .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-            }.padding(.vertical, 12)
+            }
         }
     }
 }
@@ -135,7 +135,7 @@ struct UnusedResourceRow: View {
                 if let creator = resource.creator {
                     Text(compactIdentity(creator)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                 }
-            }.padding(.vertical, 10)
+            }
         }
     }
 }
